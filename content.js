@@ -255,13 +255,14 @@
     }
   }
 
-  async function translatePage() {
-    if (state.translating) return;
+  async function translatePage(opts) {
+    if (state.translating) return false;
+    const quiet = opts && opts.quiet;
     await syncSettings(); // 翻译前刷新目标语言/样式/颜色
     const paras = collectParagraphs();
     if (!paras.length) {
-      flashBall('未发现需翻译的内容');
-      return;
+      if (!quiet) flashBall('未发现需翻译的内容');
+      return false;
     }
     state.translating = true;
     state.translated = true;
@@ -274,6 +275,7 @@
     setBallLoading(false);
     setBallText('还原译文');
     startIncremental(); // 无限滚动页面：新内容自动增量翻译
+    return true;
   }
 
   // 翻译一组已收集的段落（整页与增量共用）
@@ -350,23 +352,30 @@
 
   function pageNeedsTranslate() {
     const targetKey = TARGET_KEY[state.targetLang] || 'zh';
-    const lang = (document.documentElement.lang || '').toLowerCase();
-    if (lang) {
-      if (targetKey === 'zh') return !lang.startsWith('zh');
-      const iso = { latin: 'en', ja: 'ja', ko: 'ko', cyr: 'ru' }[targetKey] || 'en';
-      return !lang.startsWith(iso);
+    // 正文采样为主信号：html lang 可能与实际内容不符
+    // （如 fab.com 按浏览器 locale 返回中文界面壳 + 英文正文，lang="zh-CN" 但需要翻译）
+    const text = (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim();
+    if (text.length >= 40) {
+      return !alreadyTargetLang(scriptProfile(text.slice(0, 1200)), targetKey);
     }
-    const text = (document.body ? document.body.innerText : '').slice(0, 600);
-    if (!text.trim()) return false;
-    return !alreadyTargetLang(scriptProfile(text), targetKey);
+    // 正文尚无内容（SPA 未渲染）：退回 html lang 兜底
+    const lang = (document.documentElement.lang || '').toLowerCase();
+    if (!lang) return false;
+    if (targetKey === 'zh') return !lang.startsWith('zh');
+    const iso = { latin: 'en', ja: 'ja', ko: 'ko', cyr: 'ru' }[targetKey] || 'en';
+    return !lang.startsWith(iso);
   }
 
   async function maybeAutoTranslate() {
     if (IS_PDF || isBlacklisted(state.blacklist) || !state.autoTranslate) return;
     if (!pageNeedsTranslate()) return;
-    setTimeout(() => {
-      if (!state.translated && !state.translating) translatePage();
-    }, 700);
+    // SPA 首屏可能未渲染：无内容时轻量重试（700ms / 2.2s / 3.7s）
+    const attempt = async (tries) => {
+      if (state.translated || state.translating) return;
+      const done = await translatePage({ quiet: true });
+      if (!done && tries > 0) setTimeout(() => attempt(tries - 1), 1500);
+    };
+    setTimeout(() => attempt(2), 700);
   }
 
   function toggle() {
