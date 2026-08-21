@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>沉浸式免费翻译 · 效果演示</title>
+  <link rel="stylesheet" href="../content.css" />
+  <style>
+    :root {
+      --bg: #F5F6F8; --panel: #FFFFFF; --line: #E6E7EB; --line2: #D9DBE1;
+      --tx: #17181C; --tx2: rgba(23, 24, 28, 0.62); --tx3: rgba(23, 24, 28, 0.44);
+      --tx-hint: #5E6675; --acc: #3482FF; --acc-deep: #2671E8;
+      --acc-weak: #EAF2FF; --on-acc-weak: #2D6FE0;
+      --shadow: 0 1px 2px rgba(46, 60, 86, 0.05), 0 4px 16px rgba(46, 60, 86, 0.04);
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0B0C0E; --panel: #202226; --line: #33363C; --line2: #3E424A;
+        --tx: #ECEDEF; --tx2: rgba(236, 237, 239, 0.62); --tx3: rgba(236, 237, 239, 0.44);
+        --tx-hint: #99A0AE; --acc-deep: #4A90FF; --acc-weak: #24354D; --on-acc-weak: #6FA5FF;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--tx);
+      font-family: "MiSans", "HarmonyOS Sans SC", "Segoe UI Variable Text",
+        "Segoe UI", system-ui, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 0 18px 90px; }
+
+    header { display: flex; align-items: center; gap: 12px; padding: 30px 2px 18px; }
+    .logo {
+      width: 42px; height: 42px; border-radius: 13px;
+      background: linear-gradient(135deg, #3482FF 0%, #2671E8 100%);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 650;
+      box-shadow: 0 4px 12px rgba(52, 130, 255, 0.28);
+    }
+    header h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -0.015em; }
+    header .sub { font-size: 12.5px; color: var(--tx-hint); margin-top: 1px; }
+
+    .chips {
+      display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 16px;
+      scrollbar-width: none;
+    }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: none;
+      padding: 8px 15px;
+      font-size: 12.5px;
+      font-family: inherit;
+      color: var(--tx2);
+      background: var(--panel);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: background 0.16s var(--ease), color 0.16s var(--ease), transform 0.12s var(--ease);
+    }
+    .chip:hover { color: var(--tx); }
+    .chip:active { transform: scale(0.95); }
+    .chip.on { background: var(--acc-weak); color: var(--on-acc-weak); font-weight: 600; }
+
+    .card {
+      background: var(--panel);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 30px 34px 26px;
+      margin-bottom: 16px;
+      animation: card-in 0.4s var(--ease) both;
+    }
+    .card:nth-child(3) { animation-delay: 70ms; }
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .card h1 { font-size: 24px; margin: 0 0 14px; letter-spacing: -0.02em; }
+    .card h2 { font-size: 17px; margin: 22px 0 10px; }
+    .card p, .card li, .card blockquote {
+      font-size: 15px; line-height: 1.75; color: var(--tx);
+    }
+    .card blockquote {
+      margin: 12px 0; padding: 2px 0 2px 14px;
+      border-left: 3px solid var(--acc);
+      color: var(--tx2);
+    }
+    .card ul { padding-left: 22px; margin: 10px 0; }
+    .card li { margin: 5px 0; }
+    .card pre {
+      background: var(--bg); padding: 14px 16px; border-radius: 12px;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      font-size: 12.5px; line-height: 1.6; overflow-x: auto;
+      color: var(--tx2);
+    }
+    .hidden-p { display: none; }
+
+    .zone-imgs { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+    .zone-imgs img { border-radius: 12px; }
+
+    footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 18px;
+      padding: 10px 16px 12px;
+      background: rgba(245, 246, 248, 0.86);
+      backdrop-filter: blur(14px) saturate(1.4);
+      -webkit-backdrop-filter: blur(14px) saturate(1.4);
+      font-size: 11.5px; color: var(--tx-hint);
+      border-top: 1px solid var(--line);
+    }
+    @media (prefers-color-scheme: dark) {
+      footer { background: rgba(11, 12, 14, 0.86); }
+    }
+    footer b { color: var(--on-acc-weak); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">译</div>
+      <div>
+        <h1>沉浸式免费翻译 · 效果演示</h1>
+        <div class="sub">点右下角悬浮球翻译本页 · 悬停图片翻译图片 · 下方切换译文样式</div>
+      </div>
+    </header>
+
+    <div class="chips" id="styleChips">
+      <button class="chip on" data-v="color">简约彩字</button>
+      <button class="chip" data-v="blur">悬停显示</button>
+      <button class="chip" data-v="dashed">虚线下划线</button>
+      <button class="chip" data-v="bg">浅色底纹</button>
+      <button class="chip" data-v="quote">引用竖线</button>
+      <button class="chip" data-v="card">卡片边框</button>
+      <button class="chip" data-v="italic">斜体淡彩</button>
+      <button class="chip" data-v="marker">荧光笔</button>
+    </div>
+
+    <main class="card">
+      <h1>Real-Time Rendering: A Practical Introduction</h1>
+
+      <p>Real-time rendering is the process of generating images at interactive frame rates, typically
+         within sixteen milliseconds per frame. Modern GPUs execute thousands of shader programs in
+         parallel to achieve this goal.</p>
+
+      <h2>Core Concepts</h2>
+
+      <p>A rendering pipeline transforms three-dimensional geometry into a two-dimensional image through
+         a sequence of stages, including vertex processing, rasterization, and fragment shading.</p>
+
+      <ul>
+        <li>The vertex shader determines where geometry appears on screen.</li>
+        <li>The rasterizer converts triangles into pixels.</li>
+        <li>Fragment shaders compute the final color of each pixel.</li>
+      </ul>
+
+      <blockquote>Latency matters more than raw throughput in interactive applications.</blockquote>
+
+      <p>Shadow mapping renders the scene from the light's perspective and compares depths to decide
+         whether a point is in shadow. Percentage-closer filtering softens the hard edges.</p>
+
+      <!-- 这段中文在目标=简体中文时应被跳过 -->
+      <p>这一段是中文原文，目标语言为简体中文时不应该被翻译。</p>
+
+      <!-- 隐藏段落应被跳过 -->
+      <p class="hidden-p">This hidden paragraph must never be translated.</p>
+
+      <p>Below is a code block that must be skipped by the collector:</p>
+
+      <pre><code>const pipeline = device.createRenderPipeline({
+  vertex: { module: shader, entryPoint: 'vs_main' },
+  fragment: { module: shader, entryPoint: 'fs_main' }
+});</code></pre>
+
+      <p>Thank you for reading this test document. The End.</p>
+    </main>
+
+    <section class="card">
+      <h2>Image Translation</h2>
+      <p>Hover an image below and click the floating「译」button to translate it. Hover the translated
+         image again to peek at the original text.</p>
+      <div class="zone-imgs" id="imgZone"></div>
+    </section>
+  </div>
+
+  <footer>
+    <span><b>Alt+A</b> 翻译网页</span>
+    <span><b>悬停图片</b> 单图翻译</span>
+    <span><b>悬浮球</b> 翻译 / 还原</span>
+    <span><b>mock 演示</b> 无需 API Key</span>
+  </footer>
+
+  <script>
+    // 生成两张带英文文字的测试图（data URL，≥200px 触发翻译按钮）
+    (function makeTestImages() {
+      const zone = document.getElementById('imgZone');
+      const specs = [
+        { w: 480, h: 320, bg: '#f4e9d8', texts: [
+          [240, 80, 'HELLO COMIC'], [240, 200, 'What a nice day!'], [100, 280, 'THE END'] ] },
+        { w: 320, h: 480, bg: '#dceaf5', texts: [
+          [160, 120, 'Chapter 1'], [160, 300, 'To be continued...'] ] },
+      ];
+      for (const s of specs) {
+        const cv = document.createElement('canvas');
+        cv.width = s.w; cv.height = s.h;
+        const c = cv.getContext('2d');
+        c.fillStyle = s.bg; c.fillRect(0, 0, s.w, s.h);
+        c.fillStyle = '#222'; c.textAlign = 'center'; c.font = '600 22px sans-serif';
+        for (const [x, y, t] of s.texts) c.fillText(t, x, y);
+        const img = document.createElement('img');
+        img.src = cv.toDataURL('image/png');
+        img.alt = 'demo image';
+        zone.appendChild(img);
+      }
+    })();
+
+    // Mock 设置（模拟 chrome.storage.sync 返回值；?auto=1 开启自动翻译）
+    window.__IFT_MOCK_SETTINGS__ = {
+      targetLang: '简体中文', trColor: '#3482FF', trStyle: 'color',
+      autoTranslate: new URLSearchParams(location.search).get('auto') === '1',
+      blacklist: '',
+    };
+
+    // Mock 桥：模拟 background
+    // - translate：网页段落批量翻译
+    // - translateImage：图片视觉翻译，返回与测试图文字位置对应的假气泡框
+    window.__IFT_MOCK__ = async (payload) => {
+      if (payload.type === 'translate') {
+        await new Promise((r) => setTimeout(r, 250));
+        const map = {};
+        for (const it of payload.items) map[it.id] = '【译】' + it.text.slice(0, 30) + '……';
+        return { ok: true, map };
+      }
+      if (payload.type === 'translateImage') {
+        await new Promise((r) => setTimeout(r, 350));
+        return {
+          ok: true,
+          items: [
+            { x: 0.18, y: 0.16, w: 0.64, h: 0.12, translation: '【图译】你好漫画' },
+            { x: 0.15, y: 0.55, w: 0.5, h: 0.12, translation: '【图译】真是美好的一天！' },
+            { x: 0.1, y: 0.82, w: 0.3, h: 0.1, translation: '【图译】完' },
+          ],
+        };
+      }
+      return { ok: false, error: 'mock: unsupported type ' + payload.type };
+    };
+
+    // 样式 chips：改 mock 设置 → 还原 → 重新翻译
+    document.getElementById('styleChips').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('#styleChips .chip').forEach((c) => c.classList.toggle('on', c === chip));
+      window.__IFT_MOCK_SETTINGS__.trStyle = chip.dataset.v;
+      const ball = document.getElementById('ift-ball');
+      if (!ball) return;
+      ball.click(); // 还原（若已翻译）
+      setTimeout(() => ball.click(), 150); // 重新翻译
+    });
+
+    window.__IFT_TEST__ = { translatedCount: () => document.querySelectorAll('.ift-tr').length };
+  </script>
+  <script src="../content.js"></script>
+</body>
+</html>

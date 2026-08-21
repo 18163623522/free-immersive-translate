@@ -1,0 +1,787 @@
+/* 沉浸式免费翻译 - 页面注入样式（MIUIX 精修版） */
+
+/* ---------- 双语译文 ---------- */
+.ift-tr {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.95em;
+  line-height: 1.65;
+  color: var(--ift-color, #3482FF);
+  border-radius: 3px;
+  transition: opacity 0.25s ease;
+  word-break: break-word;
+  /* 焦点动效：译文浮现（批次内由 JS 设置 animation-delay 做错落） */
+  animation: ift-rise 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ift-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ift-tr:first-letter {
+  letter-spacing: normal; /* 抵消部分站点首字下沉样式 */
+}
+
+.ift-error {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.85em;
+  line-height: 1.6;
+  color: #b3563d;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.ift-error:hover {
+  text-decoration: underline dotted;
+}
+
+/* 「正在翻译…」占位：shimmer 微光扫过 */
+.ift-tr.ift-ph {
+  animation: ift-shimmer 1.2s linear infinite;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    rgba(120, 130, 145, 0.4) 0%,
+    rgba(120, 130, 145, 0.4) 40%,
+    var(--ift-color, #3482ff) 50%,
+    rgba(120, 130, 145, 0.4) 60%,
+    rgba(120, 130, 145, 0.4) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@keyframes ift-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ---------- 译文样式主题（ift-s-*） ---------- */
+
+/* 1. 简约彩字（默认）：仅变色 */
+.ift-tr.ift-s-color {
+}
+
+/* 2. 悬停显示：默认模糊，鼠标掠过显清晰 */
+.ift-tr.ift-s-blur {
+  filter: blur(5px);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.ift-tr.ift-s-blur:hover {
+  filter: none;
+  opacity: 1;
+}
+
+/* 3. 虚线下划线 */
+.ift-tr.ift-s-dashed {
+  border-bottom: 1px dashed color-mix(in srgb, var(--ift-color, #3482FF) 60%, transparent);
+  padding-bottom: 1px;
+}
+
+/* 4. 浅色底纹 */
+.ift-tr.ift-s-bg {
+  background: color-mix(in srgb, var(--ift-color, #3482FF) 9%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+/* 5. 引用竖线 */
+.ift-tr.ift-s-quote {
+  border-left: 3px solid var(--ift-color, #3482FF);
+  padding: 1px 0 1px 10px;
+  margin-top: 4px;
+  opacity: 0.95;
+}
+
+/* 6. 卡片边框 */
+.ift-tr.ift-s-card {
+  border: 1px solid color-mix(in srgb, var(--ift-color, #3482FF) 35%, transparent);
+  background: color-mix(in srgb, var(--ift-color, #3482FF) 5%, transparent);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
+/* 7. 斜体淡彩 */
+.ift-tr.ift-s-italic {
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* 8. 荧光笔：黄色标记划过，文字颜色跟随原文 */
+.ift-tr.ift-s-marker {
+  color: inherit;
+  background: linear-gradient(
+    transparent 42%,
+    rgba(255, 214, 64, 0.5) 42%,
+    rgba(255, 214, 64, 0.5) 92%,
+    transparent 92%
+  );
+  padding: 0 2px;
+  width: fit-content;
+}
+
+/* ---------- 悬浮球（毛玻璃 + 蓝调投影） ---------- */
+#ift-ball {
+  position: fixed;
+  right: 18px;
+  bottom: 64px;
+  z-index: 2147483646;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    inset 0 1px 2px rgba(255, 255, 255, 0.65),
+    0 2px 6px rgba(28, 60, 110, 0.14),
+    0 6px 20px rgba(28, 60, 110, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+  overflow: hidden;
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.18s ease;
+  /* 连续性动效：入场自右侧滑入 */
+  animation: ift-ball-in 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ift-ball-in {
+  from {
+    opacity: 0;
+    transform: translateX(64px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 反馈动效：翻译完成时轻脉冲一次 */
+#ift-ball.ift-pop {
+  animation: ift-ball-pop 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ift-ball-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+#ift-ball:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 4px 10px rgba(28, 60, 110, 0.16),
+    0 10px 28px rgba(28, 60, 110, 0.24);
+}
+
+#ift-ball:active {
+  transform: scale(0.93);
+}
+
+#ift-ball .ift-ball-label {
+  font-size: 17px;
+  font-weight: 650;
+  color: #2d6fe0;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 悬停展开成「翻译本页」胶囊（加载态不展开） */
+#ift-ball .ift-ball-text {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d6fe0;
+  opacity: 0;
+  transition: max-width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.2s ease 0.06s, margin 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ift-ball:not(.ift-loading):hover {
+  width: 100px;
+  border-radius: 24px;
+}
+
+#ift-ball:not(.ift-loading):hover .ift-ball-text {
+  max-width: 64px;
+  margin-left: 7px;
+  opacity: 1;
+}
+
+/* 加载态：文字隐去，转圈出现 */
+#ift-ball .ift-ball-spin {
+  display: none;
+  width: 17px;
+  height: 17px;
+  border: 2.5px solid rgba(52, 130, 255, 0.22);
+  border-top-color: #3482ff;
+  border-radius: 50%;
+  animation: ift-rotate 0.7s linear infinite;
+}
+
+#ift-ball.ift-loading .ift-ball-label {
+  display: none;
+}
+
+#ift-ball.ift-loading .ift-ball-spin {
+  display: block;
+}
+
+@keyframes ift-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 悬浮提示（错误/无内容反馈） */
+#ift-ball .ift-ball-tip {
+  position: absolute;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  white-space: nowrap;
+  background: rgba(28, 32, 38, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f2f5f8;
+  font-size: 12px;
+  line-height: 1;
+  padding: 8px 11px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#ift-ball .ift-ball-tip.show {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ---------- 图片/漫画翻译 ---------- */
+/* img 外包的定位层：保持原布局（margin 已挪到 wrap 上） */
+.ift-imgwrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* 译文覆盖 canvas：悬停半透明可透视原图，点击还原；浮现动效 */
+.ift-imgcv {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  animation: ift-cv-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ift-cv-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ift-imgcv:hover {
+  opacity: 0.35;
+}
+
+/* 悬停图片时出现的翻译按钮（与悬浮球同语言：毛玻璃胶囊） */
+#ift-imgbtn {
+  position: fixed;
+  z-index: 2147483645;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(28, 60, 110, 0.16),
+    0 5px 16px rgba(28, 60, 110, 0.16);
+  font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 650;
+  color: #2d6fe0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.15s cubic-bezier(0.22, 0.61, 0.36, 1),
+    background 0.15s ease;
+  /* 反馈动效：display 切换时自动重播弹出 */
+  animation: ift-btn-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ift-btn-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.76);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+#ift-imgbtn:hover {
+  background: rgba(234, 242, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+#ift-imgbtn:active {
+  transform: scale(0.9);
+}
+
+/* ---------- 悬浮球拖动态 ---------- */
+#ift-ball.ift-dragging {
+  cursor: grabbing;
+  transform: scale(1.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 6px 14px rgba(28, 60, 110, 0.2),
+    0 14px 36px rgba(28, 60, 110, 0.3);
+}
+
+/* ---------- 悬浮球菜单 ---------- */
+#ift-menu {
+  position: fixed;
+  z-index: 2147483646;
+  width: 216px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 6px 18px rgba(28, 60, 110, 0.18),
+    0 16px 44px rgba(28, 60, 110, 0.2);
+  font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1c2430;
+  animation: ift-menu-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ift-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ift-menu-item {
+  padding: 10px 12px;
+  font-size: 13.5px;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ift-menu-item:hover {
+  background: rgba(52, 130, 255, 0.1);
+  color: #2d6fe0;
+}
+
+.ift-menu-item:active {
+  transform: scale(0.98);
+}
+
+.ift-menu-dim {
+  color: rgba(28, 36, 48, 0.6);
+}
+
+.ift-menu-sec {
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: rgba(28, 36, 48, 0.42);
+}
+
+.ift-menu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px 8px;
+}
+
+.ift-menu-chip {
+  padding: 6px 11px;
+  font-size: 12px;
+  font-family: inherit;
+  color: rgba(28, 36, 48, 0.72);
+  background: rgba(28, 60, 110, 0.06);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.12s ease;
+}
+
+.ift-menu-chip:hover {
+  background: rgba(52, 130, 255, 0.14);
+}
+
+.ift-menu-chip:active {
+  transform: scale(0.94);
+}
+
+.ift-menu-chip.on {
+  background: #3482ff;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 菜单开关项：开启态 + 右侧状态字 */
+.ift-menu-item.ift-menu-on {
+  color: #2d6fe0;
+  font-weight: 600;
+}
+
+.ift-menu-state {
+  float: right;
+  font-size: 11.5px;
+  font-weight: 400;
+  opacity: 0.62;
+}
+
+/* ---------- 仅显示译文：被包裹的原文 ---------- */
+.ift-src {
+  display: none;
+}
+
+/* ---------- 划词翻译按钮（与图片按钮同语言） ---------- */
+#ift-selbtn {
+  position: fixed;
+  z-index: 2147483645;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(28, 60, 110, 0.16),
+    0 5px 16px rgba(28, 60, 110, 0.16);
+  font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 650;
+  color: #2d6fe0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: ift-btn-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.15s ease;
+}
+
+#ift-selbtn:hover {
+  background: rgba(234, 242, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+#ift-selbtn:active {
+  transform: scale(0.9);
+}
+
+/* ---------- 划词译文气泡 ---------- */
+#ift-selpop {
+  position: fixed;
+  z-index: 2147483646;
+  max-width: 300px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 6px 18px rgba(28, 60, 110, 0.18),
+    0 16px 44px rgba(28, 60, 110, 0.2);
+  font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #1c2430;
+  cursor: default;
+  animation: ift-menu-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+#ift-selpop.ift-selpop-err {
+  color: #b3563d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ift-menu,
+  #ift-selbtn,
+  #ift-selpop {
+    animation: none !important;
+  }
+}
+
+/* ---------- 侧边翻译面板 ---------- */
+#ift-side {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483646;
+  width: min(348px, 92vw);
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: -8px 0 32px rgba(20, 40, 70, 0.18);
+  font-family: "MiSans", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: #1c2430;
+  transform: translateX(100%);
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ift-side.open {
+  transform: none;
+}
+
+#ift-side .ift-side-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  font-size: 15px;
+  font-weight: 650;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+#ift-side .ift-side-x {
+  border: none;
+  background: rgba(28, 60, 110, 0.06);
+  color: #5a6672;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+#ift-side .ift-side-x:hover {
+  background: rgba(28, 60, 110, 0.12);
+}
+
+#ift-side .ift-side-x:active {
+  transform: scale(0.9);
+}
+
+#ift-side .ift-side-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+}
+
+#ift-side .ift-side-input {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: #1c2430;
+  background: rgba(28, 60, 110, 0.05);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  outline: none;
+  resize: vertical;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+#ift-side .ift-side-input:focus {
+  background: #fff;
+  border-color: #3482ff;
+  box-shadow: 0 0 0 3px rgba(52, 130, 255, 0.18);
+}
+
+#ift-side .ift-side-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0 14px;
+}
+
+#ift-side .ift-side-lang {
+  font-size: 12px;
+  color: #8c93b0;
+}
+
+#ift-side .ift-side-go {
+  padding: 8px 22px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: #3482ff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(52, 130, 255, 0.24);
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+#ift-side .ift-side-go:hover {
+  background: #2671e8;
+}
+
+#ift-side .ift-side-go:active {
+  transform: scale(0.95);
+}
+
+#ift-side .ift-side-go:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+#ift-side .ift-side-result {
+  min-height: 56px;
+  padding: 13px 15px;
+  font-size: 14px;
+  line-height: 1.75;
+  background: rgba(52, 130, 255, 0.06);
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#ift-side .ift-side-result.loading {
+  animation: ift-shimmer 1.2s linear infinite;
+  color: transparent;
+  background: linear-gradient(90deg, rgba(120, 130, 145, 0.25) 0%, rgba(120, 130, 145, 0.25) 40%, rgba(52, 130, 255, 0.6) 50%, rgba(120, 130, 145, 0.25) 60%, rgba(120, 130, 145, 0.25) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+#ift-side .ift-side-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+#ift-side .ift-side-tts {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #5a6672;
+  background: rgba(28, 60, 110, 0.06);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+#ift-side .ift-side-tts:hover {
+  background: rgba(52, 130, 255, 0.14);
+  color: #2d6fe0;
+}
+
+#ift-side .ift-side-tts:active {
+  transform: scale(0.94);
+}
+
+#ift-side .ift-side-hist-hd {
+  font-size: 11.5px;
+  color: rgba(28, 36, 48, 0.4);
+  margin: 18px 0 8px;
+  letter-spacing: 0.03em;
+}
+
+#ift-side .ift-side-item {
+  padding: 10px 12px;
+  border-radius: 11px;
+  transition: background 0.14s ease;
+  cursor: default;
+}
+
+#ift-side .ift-side-item:hover {
+  background: rgba(28, 60, 110, 0.05);
+}
+
+#ift-side .ift-side-q {
+  font-size: 12px;
+  color: #8c93b0;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ift-side .ift-side-a {
+  font-size: 13px;
+  color: #2d6fe0;
+  line-height: 1.65;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 译文编辑态 */
+.ift-tr.ift-editing {
+  outline: 2px solid var(--ift-color, #3482FF);
+  outline-offset: 2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: text;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* ---------- 无障碍：系统关闭动效时全部停用 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ift-tr,
+  .ift-tr.ift-ph,
+  #ift-ball,
+  #ift-ball.ift-pop,
+  #ift-imgbtn,
+  .ift-imgcv {
+    animation: none !important;
+  }
+  #ift-ball,
+  #ift-ball .ift-ball-text {
+    transition: none !important;
+  }
+}

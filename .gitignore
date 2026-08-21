@@ -1,0 +1,4 @@
+# 测试与开发工具不进仓库包
+__pycache__/
+*.log
+test/serve.py

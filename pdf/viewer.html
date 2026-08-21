@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>双语 PDF 查看器 · 沉浸式免费翻译</title>
+  <link rel="stylesheet" href="viewer.css" />
+</head>
+<body>
+  <div id="toolbar">
+    <button id="btnTranslate" class="primary">翻译全文</button>
+    <div class="zoom-group" id="layoutGroup">
+      <button id="layOverlay" class="on" title="译文覆盖在原文行上">覆盖</button>
+      <button id="layWeb" title="像网页一样：原文段落 + 译文对照，流式阅读">网页</button>
+      <button id="layDual" title="左原文页、右译文，双页对比">双页</button>
+    </div>
+    <button id="btnMode" title="切换译文透明度：覆盖 / 半透明对照">透视</button>
+    <span class="sep"></span>
+    <div class="zoom-group">
+      <button id="btnZoomOut" title="缩小">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="btnZoomIn" title="放大">＋</button>
+    </div>
+    <span class="sep"></span>
+    <span id="pageLabel">加载中…</span>
+    <a id="openRaw" href="#" target="_blank" title="用浏览器打开原文件">原文件</a>
+    <span id="status"></span>
+  </div>
+
+  <div id="viewer"></div>
+  <div id="empty" style="display:none">
+    <p>未指定 PDF 文件。</p>
+    <p class="hint">请从 PDF 页面右下角的悬浮球进入，或在地址栏追加 <code>?file=PDF地址</code></p>
+  </div>
+
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>

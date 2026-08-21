@@ -1,0 +1,409 @@
+/* 双语 PDF 查看器样式 */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #3a3d41;
+  font-family: "MiSans", "HarmonyOS Sans SC", "Segoe UI Variable Text",
+    "Segoe UI", system-ui, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#toolbar {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: rgba(24, 26, 29, 0.82);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 4px 18px rgba(0, 0, 0, 0.32);
+  color: #dfe3e8;
+  font-size: 13px;
+  max-width: calc(100vw - 24px);
+  /* 连续性动效：自顶部滑入 */
+  animation: toolbar-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+#toolbar button {
+  padding: 7px 15px;
+  font-size: 12.5px;
+  font-family: inherit;
+  border-radius: 11px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dfe3e8;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease, color 0.15s ease;
+}
+
+#toolbar button:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+#toolbar button:active {
+  transform: scale(0.95);
+}
+
+#toolbar button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(52, 130, 255, 0.4);
+}
+
+#toolbar button.primary {
+  background: #3482ff;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(52, 130, 255, 0.35);
+}
+
+#toolbar button.primary:hover {
+  background: #4a90ff;
+}
+
+#toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* 缩放分段控件 */
+.zoom-group {
+  display: flex;
+  align-items: center;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.zoom-group button {
+  border-radius: 0;
+  padding: 7px 12px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.zoom-group button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+#toolbar .sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#zoomLabel,
+#pageLabel {
+  min-width: 56px;
+  text-align: center;
+  color: rgba(223, 227, 232, 0.68);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-group #zoomLabel {
+  min-width: 44px;
+}
+
+#openRaw {
+  color: #7fa8d0;
+  font-size: 12.5px;
+  text-decoration: none;
+  padding: 7px 10px;
+  border-radius: 9px;
+  transition: background 0.15s ease;
+}
+
+#openRaw:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#status {
+  font-size: 12px;
+  color: #e8b28c;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#empty {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f5f6f8;
+  color: #17181c;
+  font-size: 15px;
+  gap: 6px;
+}
+
+#empty::before {
+  content: "译";
+  width: 56px;
+  height: 56px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #3482ff 0%, #2671e8 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 650;
+  box-shadow: 0 6px 20px rgba(52, 130, 255, 0.3);
+  margin-bottom: 10px;
+}
+
+#empty .hint {
+  font-size: 13px;
+  color: #5e6675;
+}
+
+#empty code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  background: #eceef2;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+#viewer {
+  padding: 72px 16px 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* ---------- 页面 ---------- */
+.pg {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.pg canvas {
+  display: block;
+}
+
+.pg .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  opacity: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+
+/* pdf.js 文本层 span 基础样式 */
+.textLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.textLayer ::selection {
+  background: rgba(61, 126, 166, 0.3);
+}
+
+/* 译文层 */
+.pg .trLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* 覆盖式译文行：默认遮住原文，悬停透视；行级错落浮现（delay 由 JS 设置） */
+.pdf-tr {
+  position: absolute;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--ift-color, #3482FF);
+  line-height: 1.25;
+  padding: 0 1px;
+  border-radius: 2px;
+  cursor: default;
+  transition: background 0.15s ease;
+  white-space: normal;
+  word-break: break-word;
+  animation: tr-line-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tr-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pdf-tr:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 对照模式：译文半透明，原文隐约可见 */
+body.side-by-side .pdf-tr {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* 页面卡片浮现 */
+.pg {
+  animation: pg-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 布局切换分段控件 ---------- */
+#layoutGroup button.on {
+  background: rgba(52, 130, 255, 0.85);
+  color: #fff;
+}
+
+/* ---------- 网页模式：原文段落 + 译文对照流式阅读 ---------- */
+.pg-web {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  padding: 34px 44px 30px;
+  width: min(860px, 96vw);
+  animation: pg-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: "MiSans", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.web-pageno {
+  font-size: 11px;
+  color: #9aa3ad;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #eceef1;
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+}
+
+.web-para {
+  margin: 0 0 18px;
+}
+
+.web-src {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #2b3138;
+}
+
+.web-tr {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--ift-color, #3482ff);
+  margin-top: 4px;
+}
+
+.web-tr:not(:empty) {
+  animation: tr-line-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.web-tr:empty {
+  display: none;
+}
+
+/* ---------- 双页模式：左原页 canvas，右译文列 ---------- */
+.pg-dual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
+  gap: 16px;
+  align-items: start;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  width: min(1160px, 96vw);
+  animation: pg-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: "MiSans", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.dual-left {
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f2f3f5;
+}
+
+.dual-left canvas {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+}
+
+.dual-right {
+  padding: 18px 20px 12px;
+  border-left: 1px dashed #e2e5e9;
+}
+
+.dual-right .web-src {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #98a1ab;
+}
+
+.dual-right .web-tr {
+  font-size: 14px;
+}
+
+@media (max-width: 860px) {
+  .pg-dual {
+    grid-template-columns: 1fr;
+  }
+  .dual-right {
+    border-left: none;
+    border-top: 1px dashed #e2e5e9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #toolbar,
+  .pdf-tr,
+  .pg,
+  .pg-web,
+  .pg-dual,
+  .web-tr:not(:empty) {
+    animation: none !important;
+  }
+}

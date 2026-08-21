@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    :root {
+      --bg: #F5F6F8; --panel: #FFFFFF;
+      --line: #E6E7EB; --line2: #D9DBE1;
+      --tx: #17181C; --tx2: rgba(23, 24, 28, 0.62); --tx-hint: #5E6675;
+      --acc: #3482FF; --acc-deep: #2671E8;
+      --acc-weak: #EAF2FF; --on-acc-weak: #2D6FE0;
+      --btn: #F0F1F5; --btn-tx: #2C3038; --err: #D9382A;
+      --ring: 0 0 0 3px rgba(52, 130, 255, 0.18);
+      --shadow: 0 1px 2px rgba(46, 60, 86, 0.05), 0 4px 16px rgba(46, 60, 86, 0.04);
+      --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0B0C0E; --panel: #202226; --line: #33363C; --line2: #3E424A;
+        --tx: #ECEDEF; --tx2: rgba(236, 237, 239, 0.62); --tx-hint: #99A0AE;
+        --acc-deep: #4A90FF; --acc-weak: #24354D; --on-acc-weak: #6FA5FF;
+        --btn: #2B2D32; --btn-tx: #D6D9DE; --err: #F04E3E;
+        --ring: 0 0 0 3px rgba(52, 130, 255, 0.32);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      width: 272px;
+      margin: 0;
+      padding: 16px 16px 14px;
+      background: var(--bg);
+      color: var(--tx);
+      font-family: "MiSans", "HarmonyOS Sans SC", "Segoe UI Variable Text",
+        "Segoe UI", system-ui, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .logo {
+      width: 34px; height: 34px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #3482FF 0%, #2671E8 100%);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 650;
+      box-shadow: 0 3px 10px rgba(52, 130, 255, 0.28);
+      flex: none;
+    }
+    .brand h1 { margin: 0; font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; }
+    .meta { font-size: 11px; color: var(--tx-hint); line-height: 1.5; margin-top: 1px; }
+    .meta b { color: var(--on-acc-weak); font-weight: 600; }
+
+    button {
+      width: 100%;
+      padding: 11px 0;
+      font-size: 13.5px;
+      font-weight: 500;
+      font-family: inherit;
+      border-radius: 12px;
+      border: none;
+      background: var(--panel);
+      color: var(--tx);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 0.12s var(--ease), background 0.16s var(--ease),
+        box-shadow 0.16s var(--ease);
+    }
+    button:hover { background: var(--acc-weak); color: var(--on-acc-weak); }
+    button:active { transform: scale(0.96); }
+    button:focus-visible { outline: none; box-shadow: var(--ring); }
+    button.primary {
+      background: var(--acc);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(52, 130, 255, 0.24);
+    }
+    button.primary:hover { background: var(--acc-deep); color: #fff; }
+    .primary { margin-bottom: 8px; }
+    .duo { display: flex; gap: 8px; margin-bottom: 10px; }
+    .duo button { flex: 1; }
+
+    .warn {
+      display: none;
+      margin: 0 0 8px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      color: var(--err);
+      background: color-mix(in srgb, var(--err) 8%, transparent);
+      border-radius: 10px;
+      line-height: 1.5;
+    }
+    .kbd {
+      font-size: 10.5px;
+      color: var(--tx-hint);
+      text-align: center;
+      letter-spacing: 0.01em;
+    }
+
+    /* ---------- 入场：短生命周期界面，快速错落浮现 ---------- */
+    .brand,
+    .warn,
+    .primary,
+    .duo,
+    .kbd {
+      animation: popup-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .primary { animation-delay: 55ms; }
+    .duo { animation-delay: 105ms; }
+    .kbd { animation-delay: 145ms; }
+
+    @keyframes popup-in {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .brand, .warn, .primary, .duo, .kbd {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="logo">译</div>
+    <div>
+      <h1>沉浸式免费翻译</h1>
+      <div class="meta" id="meta">加载中…</div>
+    </div>
+  </div>
+
+  <div class="warn" id="warn"></div>
+  <button class="primary" id="btnToggle">翻译此页</button>
+  <div class="duo">
+    <button id="btnImages">翻译图片</button>
+    <button id="btnOptions">设置</button>
+  </div>
+  <div class="kbd">Alt+A 翻译网页 · 悬停图片单图翻译 · PDF 点悬浮球</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

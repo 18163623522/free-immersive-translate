@@ -1,0 +1,92 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 641 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+(Real-Time Rendering: A Practical Introduction) Tj
+T*
+(Real-time rendering generates images at interactive frame rates,) Tj
+T*
+(typically within sixteen milliseconds per frame.) Tj
+T*
+(Modern GPUs execute thousands of shader programs in parallel.) Tj
+T*
+
+T*
+(A rendering pipeline transforms three-dimensional geometry) Tj
+T*
+(into a two-dimensional image through a sequence of stages,) Tj
+T*
+(including vertex processing, rasterization, and shading.) Tj
+T*
+
+T*
+(Shadow mapping renders the scene from the light perspective) Tj
+T*
+(and compares depths to decide whether a point is in shadow.) Tj
+T*
+(2026) Tj
+T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 391 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+(Chapter 2: Core Concepts) Tj
+T*
+
+T*
+(Latency matters more than raw throughput in interactive) Tj
+T*
+(applications. Users perceive frames above twenty milliseconds) Tj
+T*
+(as stutter, so budgets drive every design decision.) Tj
+T*
+
+T*
+(Percentage-closer filtering softens the hard shadow edges) Tj
+T*
+(by averaging multiple depth comparisons per pixel.) Tj
+T*
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000000945 00000 n 
+0000001071 00000 n 
+0000001513 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+1583
+%%EOF
