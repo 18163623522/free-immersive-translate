@@ -206,7 +206,9 @@
     for (const old of el.querySelectorAll(':scope > .' + TR_CLS + ',:scope > .' + ERR_CLS)) {
       old.remove();
     }
-    const err = makeTrEl('⚠ 翻译失败，点击重试', true);
+    // 错误摘要直接可见（完整信息在悬停 title），便于用户定位问题
+    const brief = String(message || '未知错误').slice(0, 60);
+    const err = makeTrEl('⚠ ' + brief + '（点击重试）', true);
     err.title = message;
     el.appendChild(err);
   }

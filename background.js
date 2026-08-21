@@ -109,46 +109,83 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   if (!url) throw new Error('未配置 API 地址（自定义服务商需填 Base URL）');
   if (!settings.apiKey) throw new Error('未配置 API Key，请到设置页填写');
 
-  const body = {
+  const base = {
     model: settings.model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.2,
-    max_tokens: maxTokens,
+    // 智谱 GLM-4.5+ 系列官方推荐 temperature 0.6~1.2，过低的值部分模型会拒绝
+    temperature: 0.6,
+    max_tokens: Math.max(2000, maxTokens),
   };
-  // 智谱 GLM-4.5 系列默认开思考模式，翻译场景关掉提速；
-  // 硅基流动 Qwen3 系列 hybrid 思考用 enable_thinking:false 关闭
-  if (settings.provider === 'zhipu') body.thinking = { type: 'disabled' };
+  // 关闭思考模式提速；硅基流动 Qwen3 系列 hybrid 用 enable_thinking:false
+  if (settings.provider === 'zhipu') base.thinking = { type: 'disabled' };
   if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(settings.model)) {
-    body.enable_thinking = false;
+    base.enable_thinking = false;
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + settings.apiKey,
+  // 参数自适应降级：4xx 时依次去掉可选参数重试
+  // （不同模型对 thinking/temperature 的校验不一，裸请求兜底最大兼容）
+  const variants = [
+    (b) => b,
+    (b) => {
+      const c = { ...b };
+      delete c.thinking;
+      delete c.enable_thinking;
+      return c;
     },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
+    (b) => {
+      const c = { ...b };
+      delete c.thinking;
+      delete c.enable_thinking;
+      delete c.temperature;
+      return c;
+    },
+  ];
+
+  let lastErr = null;
+  for (const build of variants) {
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + settings.apiKey,
+        },
+        body: JSON.stringify(build(base)),
+      });
+    } catch (e) {
+      throw new Error('网络错误：' + (e && e.message ? e.message : e));
+    }
+    if (res.ok) {
+      const data = await res.json();
+      const msg = data.choices && data.choices[0] && data.choices[0].message;
+      let content = msg && typeof msg.content === 'string' ? msg.content : '';
+      // 思考型模型偶发 content 为空、正文落在 reasoning_content（截取 JSON 部分兜底）
+      if (!content.trim() && msg && typeof msg.reasoning_content === 'string') {
+        content = msg.reasoning_content;
+      }
+      if (!content.trim()) {
+        lastErr = new Error('模型返回了空内容（可在设置页换模型试试）');
+        continue; // 换参数变体再试（去掉 thinking 后行为不同）
+      }
+      return content;
+    }
     let detail = '';
     try {
-      detail = (await res.text()).slice(0, 300);
+      detail = (await res.text()).slice(0, 200);
     } catch (_) {}
-    throw new Error(`HTTP ${res.status} ${detail}`);
+    lastErr = new Error('HTTP ' + res.status + ' ' + detail);
+    if (res.status === 429 || res.status >= 500) {
+      // 限流/服务端错误：交给外层延时重试，不换参数变体
+      throw lastErr;
+    }
+    // 其余 4xx（400 参数 / 401 Key / 404 模型名）：继续尝试更简参数，
+    // 全部失败后如实报出最后一次错误
   }
-  const data = await res.json();
-  const msg = data.choices && data.choices[0] && data.choices[0].message;
-  let content = msg && typeof msg.content === 'string' ? msg.content : '';
-  // 思考型模型偶尔 content 为空、正文落在 reasoning_content
-  if (!content.trim() && msg && typeof msg.reasoning_content === 'string') {
-    content = msg.reasoning_content;
-  }
-  if (!content.trim()) throw new Error('模型返回了空内容');
-  return content;
+  throw lastErr || new Error('请求失败');
 }
 
 // ---------- 翻译缓存（chrome.storage.local，7 天有效，跨页面/会话） ----------
