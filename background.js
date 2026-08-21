@@ -101,6 +101,12 @@ function release() {
 }
 
 // ---------- LLM 调用 ----------
+// 429（免费档过载，智谱 code 1305）应对：指数退避 + 全局冷却排队 + 智谱体系内自动降级轻量模型
+let providerCooldownUntil = 0; // 429 后所有请求排队等待，避免雪上加霜
+let zhipuFallbackModel = '';   // 主模型持续 429 时本会话自动降级（同 Key 可用的免费轻量款）
+const ZHIPU_FALLBACK = 'glm-4-flash-250414';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   const url =
     settings.provider === 'custom'
@@ -109,8 +115,31 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   if (!url) throw new Error('未配置 API 地址（自定义服务商需填 Base URL）');
   if (!settings.apiKey) throw new Error('未配置 API Key，请到设置页填写');
 
+  let model = settings.model;
+  if (settings.provider === 'zhipu' && zhipuFallbackModel && model !== zhipuFallbackModel) {
+    model = zhipuFallbackModel; // 本会话已确认主模型过载，直接走降级
+  }
+
+  const result = await callModelWithRetry(settings, url, model, systemPrompt, userPrompt, maxTokens);
+  if (result.ok) return result.content;
+
+  // 智谱主模型持续 429：同 Key 自动降级到免费轻量款再试
+  if (
+    settings.provider === 'zhipu' &&
+    result.rateLimited &&
+    model !== ZHIPU_FALLBACK
+  ) {
+    zhipuFallbackModel = ZHIPU_FALLBACK;
+    const fb = await callModelWithRetry(settings, url, ZHIPU_FALLBACK, systemPrompt, userPrompt, maxTokens);
+    if (fb.ok) return fb.content;
+    throw fb.error;
+  }
+  throw result.error;
+}
+
+async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt, maxTokens) {
   const base = {
-    model: settings.model,
+    model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -121,12 +150,11 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   };
   // 关闭思考模式提速；硅基流动 Qwen3 系列 hybrid 用 enable_thinking:false
   if (settings.provider === 'zhipu') base.thinking = { type: 'disabled' };
-  if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(settings.model)) {
+  if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(model)) {
     base.enable_thinking = false;
   }
 
   // 参数自适应降级：4xx 时依次去掉可选参数重试
-  // （不同模型对 thinking/temperature 的校验不一，裸请求兜底最大兼容）
   const variants = [
     (b) => b,
     (b) => {
@@ -144,48 +172,64 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
     },
   ];
 
+  // 429/5xx 指数退避：1s → 2.5s → 5s
+  const BACKOFF = [1000, 2500, 5000];
+  let rateLimited = false;
   let lastErr = null;
-  for (const build of variants) {
-    let res;
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + settings.apiKey,
-        },
-        body: JSON.stringify(build(base)),
-      });
-    } catch (e) {
-      throw new Error('网络错误：' + (e && e.message ? e.message : e));
-    }
-    if (res.ok) {
-      const data = await res.json();
-      const msg = data.choices && data.choices[0] && data.choices[0].message;
-      let content = msg && typeof msg.content === 'string' ? msg.content : '';
-      // 思考型模型偶发 content 为空、正文落在 reasoning_content（截取 JSON 部分兜底）
-      if (!content.trim() && msg && typeof msg.reasoning_content === 'string') {
-        content = msg.reasoning_content;
+
+  for (let round = 0; round <= BACKOFF.length; round++) {
+    if (round > 0) await sleep(BACKOFF[round - 1]);
+    // 全局冷却排队（429 后其他在途请求让服务器喘口气）
+    const cool = providerCooldownUntil - Date.now();
+    if (cool > 0) await sleep(cool);
+
+    for (const build of variants) {
+      let res;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + settings.apiKey,
+          },
+          body: JSON.stringify(build(base)),
+        });
+      } catch (e) {
+        return { ok: false, error: new Error('网络错误：' + (e && e.message ? e.message : e)) };
       }
-      if (!content.trim()) {
-        lastErr = new Error('模型返回了空内容（可在设置页换模型试试）');
-        continue; // 换参数变体再试（去掉 thinking 后行为不同）
+      if (res.ok) {
+        const data = await res.json();
+        const msg = data.choices && data.choices[0] && data.choices[0].message;
+        let content = msg && typeof msg.content === 'string' ? msg.content : '';
+        if (!content.trim() && msg && typeof msg.reasoning_content === 'string') {
+          content = msg.reasoning_content;
+        }
+        if (!content.trim()) {
+          lastErr = new Error('模型返回了空内容（可在设置页换模型试试）');
+          continue; // 换参数变体再试
+        }
+        return { ok: true, content };
       }
-      return content;
+      let detail = '';
+      try {
+        detail = (await res.text()).slice(0, 160);
+      } catch (_) {}
+      lastErr = new Error('HTTP ' + res.status + ' ' + detail);
+      if (res.status === 429 || res.status >= 500) {
+        rateLimited = true;
+        providerCooldownUntil = Date.now() + 2500; // 全局冷却 2.5s
+        break; // 跳出变体循环，进入退避等待
+      }
+      // 其余 4xx：尝试更简参数变体
     }
-    let detail = '';
-    try {
-      detail = (await res.text()).slice(0, 200);
-    } catch (_) {}
-    lastErr = new Error('HTTP ' + res.status + ' ' + detail);
-    if (res.status === 429 || res.status >= 500) {
-      // 限流/服务端错误：交给外层延时重试，不换参数变体
-      throw lastErr;
-    }
-    // 其余 4xx（400 参数 / 401 Key / 404 模型名）：继续尝试更简参数，
-    // 全部失败后如实报出最后一次错误
   }
-  throw lastErr || new Error('请求失败');
+  if (rateLimited) {
+    lastErr = new Error(
+      '模型访问量过大（429），退避重试后仍限流' +
+        (settings.provider === 'zhipu' ? '，将尝试自动切换轻量模型' : '')
+    );
+  }
+  return { ok: false, rateLimited, error: lastErr || new Error('请求失败') };
 }
 
 // ---------- 翻译缓存（chrome.storage.local，7 天有效，跨页面/会话） ----------
