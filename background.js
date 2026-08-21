@@ -6,11 +6,11 @@
 // ---------- 服务商预设（全部 OpenAI 兼容协议） ----------
 const PROVIDERS = {
   zhipu: {
-    label: '智谱 BigModel（glm-4.5-flash 免费）',
+    label: '智谱 BigModel（glm-4.7-flash 免费）',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    defaultModel: 'glm-4.5-flash',
+    defaultModel: 'glm-4.7-flash',
     keyUrl: 'https://open.bigmodel.cn/userinfo/apikey',
-    keyHint: 'open.bigmodel.cn → 控制台 → API Keys，glm-4.5-flash 模型完全免费',
+    keyHint: 'open.bigmodel.cn → 控制台 → API Keys，glm-4.7-flash 模型完全免费',
   },
   siliconflow: {
     label: '硅基流动 SiliconFlow（Qwen3-8B 等免费档）',
@@ -38,7 +38,7 @@ const PROVIDERS = {
 const DEFAULT_SETTINGS = {
   provider: 'zhipu',
   apiKey: '',
-  model: 'glm-4.5-flash',
+  model: 'glm-4.7-flash',
   customBaseUrl: '',
   targetLang: '简体中文',
   trColor: '#3482FF',

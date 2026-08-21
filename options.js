@@ -6,10 +6,10 @@
 
   const PROVIDER_META = {
     zhipu: {
-      model: 'glm-4.5-flash',
+      model: 'glm-4.7-flash',
       main: '智谱 BigModel',
-      sub: 'glm-4.5-flash 完全免费 · 国内直连（推荐）',
-      hint: '到 <a href="https://open.bigmodel.cn/userinfo/apikey" target="_blank">open.bigmodel.cn</a> 注册后创建 API Key；glm-4.5-flash 文本、glm-4.6v-flash 视觉均免费。',
+      sub: 'glm-4.7-flash 完全免费 · 国内直连（推荐）',
+      hint: '到 <a href="https://open.bigmodel.cn/userinfo/apikey" target="_blank">open.bigmodel.cn</a> 注册后创建 API Key；glm-4.7-flash 文本、glm-4.6v-flash 视觉均免费。',
     },
     siliconflow: {
       model: 'Qwen/Qwen3-8B',
