@@ -73,6 +73,13 @@ async function getVisionSettings() {
 async function getSettings() {
   const s = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   const preset = PROVIDERS[s.provider] || PROVIDERS.zhipu;
+  // 退役模型自动迁移：官方已宣布下线的模型（服务降级为挂起/极慢），
+  // 已存的旧默认值必须显式迁移——只改 DEFAULT_SETTINGS 救不了老用户
+  const RETIRED = { 'glm-4.5-flash': 'glm-4.7-flash' };
+  if (RETIRED[s.model]) {
+    s.model = RETIRED[s.model];
+    try { chrome.storage.sync.set({ model: s.model }); } catch (_) {}
+  }
   // model 为空时回落到该服务商默认模型
   if (!s.model) s.model = preset.defaultModel;
   return { ...s, preset };
@@ -186,6 +193,7 @@ async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt
     for (const build of variants) {
       let res;
       try {
+        // 45s 超时保护：退役/异常模型会挂起不响应，不能让"正在翻译…"永远悬着
         res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -193,9 +201,14 @@ async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt
             Authorization: 'Bearer ' + settings.apiKey,
           },
           body: JSON.stringify(build(base)),
+          signal: AbortSignal.timeout(45000),
         });
       } catch (e) {
-        return { ok: false, error: new Error('网络错误：' + (e && e.message ? e.message : e)) };
+        const msg = e && e.message ? e.message : String(e);
+        const timedOut = /abort|timeout|超时/i.test(msg);
+        lastErr = new Error((timedOut ? '模型响应超时（45s）' : '网络错误：') + (timedOut ? '' : msg));
+        if (timedOut) return { ok: false, rateLimited: true, error: lastErr }; // 触发智谱自动降级换模型
+        return { ok: false, error: lastErr };
       }
       if (res.ok) {
         const data = await res.json();

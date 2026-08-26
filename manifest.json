@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "沉浸式免费翻译",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "双语对照网页翻译，AI 用免费模型（智谱 GLM-4.5-Flash / 硅基流动 / Groq / 自定义 OpenAI 兼容）",
   "permissions": ["storage", "tabs", "activeTab", "contextMenus", "unlimitedStorage"],
   "host_permissions": ["<all_urls>"],
