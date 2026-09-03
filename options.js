@@ -8,14 +8,32 @@
     zhipu: {
       model: 'glm-4.7-flash',
       main: '智谱 BigModel',
-      sub: 'glm-4.7-flash 完全免费 · 国内直连（推荐）',
-      hint: '到 <a href="https://open.bigmodel.cn/userinfo/apikey" target="_blank">open.bigmodel.cn</a> 注册后创建 API Key；glm-4.7-flash 文本、glm-4.6v-flash 视觉均免费。',
+      sub: 'glm-4.7-flash 免费 · 国内直连（推荐）',
+      hint: '到 <a href="https://open.bigmodel.cn/userinfo/apikey" target="_blank">open.bigmodel.cn</a> 注册后创建 API Key；flash 系列免费，繁忙时自动降级 glm-4-flash-250414。',
+    },
+    bailian: {
+      model: 'qwen3.5-flash',
+      main: '阿里云百炼',
+      sub: '千问全系列 · 新人每模型 100 万 Token',
+      hint: '到 <a href="https://bailian.console.aliyun.com/" target="_blank">bailian.console.aliyun.com</a> 开通百炼取 API-KEY；千问系列翻译质量好，国内直连。',
+    },
+    volc: {
+      model: 'doubao-seed-1.6-flash-250815',
+      main: '火山方舟 · 豆包',
+      sub: '新用户每日 200 万 Token · 每日续杯',
+      hint: '到 <a href="https://console.volcengine.com/ark" target="_blank">console.volcengine.com/ark</a> 创建 API Key；免费额度每日刷新；模型名可在方舟控制台「在线推理」页查看并修改。',
     },
     siliconflow: {
       model: 'Qwen/Qwen3-8B',
       main: '硅基流动',
       sub: 'Qwen3-8B 等 0 元小模型',
       hint: '到 <a href="https://cloud.siliconflow.cn/account/ak" target="_blank">cloud.siliconflow.cn</a> 注册，模型中心带「免费」标签的模型 0 元可用（有 RPM 限速）。',
+    },
+    gemini: {
+      model: 'gemini-flash-latest',
+      main: 'Google Gemini',
+      sub: '免费档 · 需代理',
+      hint: '到 <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> 免费创建 Key；国内需代理；走 Gemini 的 OpenAI 兼容端点。',
     },
     groq: {
       model: 'llama-3.3-70b-versatile',

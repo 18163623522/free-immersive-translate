@@ -13,7 +13,8 @@
       return;
     }
     const providerNames = {
-      zhipu: '智谱', siliconflow: '硅基流动', groq: 'Groq', custom: '自定义',
+      zhipu: '智谱', bailian: '阿里百炼', volc: '豆包', siliconflow: '硅基流动',
+      gemini: 'Gemini', groq: 'Groq', custom: '自定义',
     };
     metaEl.innerHTML =
       '服务商：<b>' + (providerNames[s.provider] || s.provider) + '</b> · 模型 <b>' +

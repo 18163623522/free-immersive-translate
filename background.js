@@ -10,7 +10,21 @@ const PROVIDERS = {
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     defaultModel: 'glm-4.7-flash',
     keyUrl: 'https://open.bigmodel.cn/userinfo/apikey',
-    keyHint: 'open.bigmodel.cn → 控制台 → API Keys，glm-4.7-flash 模型完全免费',
+    keyHint: 'open.bigmodel.cn → 控制台 → API Keys，flash 系列模型免费',
+  },
+  bailian: {
+    label: '阿里云百炼（千问系列，新人每模型 100 万 Token）',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    defaultModel: 'qwen3.5-flash',
+    keyUrl: 'https://bailian.console.aliyun.com/',
+    keyHint: 'bailian.console.aliyun.com 开通后取 API-KEY；千问全系列每模型 100 万新人额度，国内直连',
+  },
+  volc: {
+    label: '火山方舟·豆包（新用户每日 200 万 Token）',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    defaultModel: 'doubao-seed-1.6-flash-250815',
+    keyUrl: 'https://console.volcengine.com/ark',
+    keyHint: 'console.volcengine.com/ark 创建 API Key；免费额度每日刷新，模型名可在方舟控制台查看（不同日期后缀不同，填错可改）',
   },
   siliconflow: {
     label: '硅基流动 SiliconFlow（Qwen3-8B 等免费档）',
@@ -18,6 +32,13 @@ const PROVIDERS = {
     defaultModel: 'Qwen/Qwen3-8B',
     keyUrl: 'https://cloud.siliconflow.cn/account/ak',
     keyHint: 'cloud.siliconflow.cn 注册送额度，且有多款 0 元小模型（带「免费」标签）',
+  },
+  gemini: {
+    label: 'Google Gemini（免费档，需代理）',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    defaultModel: 'gemini-flash-latest',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    keyHint: 'aistudio.google.com 免费 Key；国内需代理；走 Gemini 的 OpenAI 兼容端点',
   },
   groq: {
     label: 'Groq（llama-3.3-70b 免费档，需代理）',
@@ -31,7 +52,7 @@ const PROVIDERS = {
     baseUrl: '',
     defaultModel: '',
     keyUrl: '',
-    keyHint: '填写任意 OpenAI 兼容完整 URL。本地 Ollama 填 http://localhost:11434/v1/chat/completions（Key 任意）',
+    keyHint: '填写任意 OpenAI 兼容完整 URL。本地 Ollama 填 http://localhost:11434/v1/chat/completions（Key 任意）；OpenRouter 免费模型名以 :free 结尾',
   },
 };
 
@@ -186,6 +207,10 @@ function buildRequestBody(settings, model, systemPrompt, userPrompt, maxTokens) 
       body.thinking = { type: 'disabled' }; // 4.5/4.6 可关思考提速
     }
     // glm-4 老款（4-flash-250414 等）不支持 thinking 字段，不传
+  } else if (settings.provider === 'bailian') {
+    if (/qwen3/i.test(model)) body.enable_thinking = false; // 千问 Qwen3 混合思考关掉提速
+  } else if (settings.provider === 'volc') {
+    if (/doubao/i.test(model)) body.thinking = { type: 'disabled' }; // 豆包 thinking 可关
   } else if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(model)) {
     body.enable_thinking = false; // Qwen3 hybrid 关思考
   }

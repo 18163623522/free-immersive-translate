@@ -53,13 +53,18 @@
 3. 点「加载已解压的扩展程序」，选择本目录 `free-immersive-translate/`
 4. 点扩展图标 → 设置 → 填入 API Key → 「测试连接」
 
-## 免费 AI 配置（三选一，默认已选智谱）
+## 免费 AI 配置（默认已选智谱，共 6 家 + 自定义）
 
-| 服务商 | 免费模型 | Key 获取 | 备注 |
+| 服务商 | 免费模型/额度 | Key 获取 | 备注 |
 |---|---|---|---|
-| **智谱 BigModel**（默认） | `glm-4.7-flash` | [open.bigmodel.cn](https://open.bigmodel.cn/userinfo/apikey) 注册即得 | 按官方[对话补全 API](https://docs.bigmodel.cn/api-reference/模型-api/对话补全) 规范配置：`do_sample:false`（翻译一致性）+ `response_format:json_object`（稳定 JSON 输出）；4.7 系列强制思考无法关闭，繁忙时限流——插件自动降级 `glm-4-flash-250414`（同 Key 免费，实测秒回） |
-| 硅基流动 | `Qwen/Qwen3-8B` 等带「免费」标签款 | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) | 0 元小模型，有 RPM 限速 |
-| Groq | `llama-3.3-70b-versatile` | [console.groq.com](https://console.groq.com/keys) | 免费档，国内需代理 |
+| **智谱 BigModel**（默认） | `glm-4.7-flash` | [open.bigmodel.cn](https://open.bigmodel.cn/userinfo/apikey) 注册即得 | 按官方[对话补全 API](https://docs.bigmodel.cn/api-reference/模型-api/对话补全) 规范配置；4.7 系列强制思考，繁忙时插件自动降级 `glm-4-flash-250414`（同 Key 免费，实测秒回） |
+| **阿里云百炼** | 千问全系列，新人每模型 100 万 Token | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/) | 默认 `qwen3.5-flash`，OpenAI 兼容模式国内直连，翻译质量好 |
+| **火山方舟 · 豆包** | 新用户**每日 200 万 Token** | [console.volcengine.com/ark](https://console.volcengine.com/ark) | 每日续杯；模型名在方舟控制台「在线推理」页核对 |
+| **硅基流动** | `Qwen/Qwen3-8B` 等 0 元小模型 | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) | 带「免费」标签的模型 0 元（有 RPM 限速） |
+| **Google Gemini** | 免费档 | [aistudio.google.com](https://aistudio.google.com/apikey) | 国内需代理；走 Gemini 的 OpenAI 兼容端点 |
+| **Groq** | `llama-3.3-70b-versatile` 免费档 | [console.groq.com](https://console.groq.com/keys) | 国内需代理 |
+
+另：百度千帆（每模型 100 万 / 3 个月）、腾讯混元（100 万 / 年）、讯飞星火（新人包）等均为 OpenAI 兼容，可用「自定义」填入其兼容端点使用。
 
 **本地模型（也免费）**：服务商选「自定义」，地址填 `http://localhost:11434/v1/chat/completions`（Ollama），Key 任意填，模型如 `qwen2.5:7b`。OpenRouter 等 OpenAI 兼容平台同理（免费模型名以 `:free` 结尾）。
 
