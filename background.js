@@ -672,6 +672,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'openEpub') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('epub/epub.html') });
+    sendResponse({ ok: true });
+    return;
+  }
+
   if (msg.type === 'openOptions') {
     chrome.runtime.openOptionsPage();
     sendResponse({ ok: true });

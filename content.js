@@ -1346,6 +1346,7 @@
       '<div class="ift-menu-item' + (state.subtitle ? ' ift-menu-on' : '') + '" data-act="subtitle">视频字幕' +
       '<span class="ift-menu-state">' + (state.subtitle ? '开' : '关') + '</span></div>' +
       '<div class="ift-menu-item" data-act="sidepanel">翻译面板 (Alt+S)</div>' +
+      '<div class="ift-menu-item ift-menu-dim" data-act="epub">打开双语电子书…</div>' +
       '<div class="ift-menu-item ift-menu-dim" data-act="export">导出双语 HTML</div>' +
       '<div class="ift-menu-sec">译文样式</div>' +
       '<div class="ift-menu-chips">' + chips + '</div>' +
@@ -1381,6 +1382,9 @@
         showBallMenu();
       } else if (act === 'sidepanel') {
         toggleSidePanel();
+      } else if (act === 'epub') {
+        if (hasChromeApi) chrome.runtime.sendMessage({ type: 'openEpub' });
+        else flashBall('电子书阅读器需以扩展方式运行');
       } else if (act === 'export') {
         exportBilingual();
       } else if (act === 'hide') {

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>双语电子书 · 沉浸式免费翻译</title>
+  <link rel="stylesheet" href="epub.css" />
+</head>
+<body>
+  <div id="toolbar">
+    <button id="btnPrev" class="ghost" title="上一章">‹</button>
+    <select id="chapterSel" title="章节目录"></select>
+    <button id="btnNext" class="ghost" title="下一章">›</button>
+    <span class="sep"></span>
+    <button id="btnTranslate" class="primary">翻译本章</button>
+    <button id="btnOnlyTr" class="ghost" title="隐藏原文只看译文">仅译文</button>
+    <span class="sep"></span>
+    <span id="status"></span>
+    <span id="bookTitle" class="title"></span>
+  </div>
+
+  <div id="drop">
+    <div class="drop-inner">
+      <div class="drop-logo">译</div>
+      <h1>双语电子书阅读器</h1>
+      <p>打开 EPUB，逐章原文 + 译文对照阅读。译文缓存 7 天，重读零请求。</p>
+      <button id="btnOpen" class="primary">选择 EPUB 文件</button>
+      <p class="hint">或将 .epub 文件拖入本窗口 · 支持本地导入，文件不会上传</p>
+      <input type="file" id="fileInput" accept=".epub,application/epub+zip" hidden />
+    </div>
+  </div>
+
+  <div id="reader" hidden>
+    <article id="chapter"></article>
+    <div id="pager">
+      <button id="btnPrev2">‹ 上一章</button>
+      <span id="pageInfo"></span>
+      <button id="btnNext2">下一章 ›</button>
+    </div>
+  </div>
+
+  <script src="epub.js"></script>
+</body>
+</html>
