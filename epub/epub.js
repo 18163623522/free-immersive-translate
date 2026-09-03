@@ -402,12 +402,90 @@
   const setStatus = (t) => ($('status').textContent = t);
 
   // ============================================================
+  // 书架（IndexedDB 持久存书，重开免选文件）
+  // ============================================================
+  function idb() {
+    return new Promise((res) => {
+      const q = indexedDB.open('ift-epub', 1);
+      q.onupgradeneeded = () => q.result.createObjectStore('books', { keyPath: 'id' });
+      q.onsuccess = () => res(q.result);
+      q.onerror = () => res(null);
+    });
+  }
+  const shelfAll = async () => {
+    const db = await idb();
+    if (!db) return [];
+    return new Promise((res) => {
+      const r = db.transaction('books').objectStore('books').getAll();
+      r.onsuccess = () => res(r.result || []);
+      r.onerror = () => res([]);
+    });
+  };
+  const shelfPut = async (book) => {
+    const db = await idb();
+    if (!db) return;
+    return new Promise((res) => {
+      const r = db.transaction('books', 'readwrite').objectStore('books').put(book);
+      r.onsuccess = res;
+      r.onerror = res;
+    });
+  };
+  const shelfDel = async (id) => {
+    const db = await idb();
+    if (!db) return;
+    return new Promise((res) => {
+      const r = db.transaction('books', 'readwrite').objectStore('books').delete(id);
+      r.onsuccess = res;
+      r.onerror = res;
+    });
+  };
+
+  function bookId(title, size) {
+    let h = 5381;
+    const s = title + '|' + size;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+
+  async function renderShelf() {
+    const el = $('shelf');
+    if (!el) return;
+    const books = (await shelfAll()).sort((a, b) => b.addedAt - a.addedAt);
+    el.innerHTML = '';
+    el.hidden = books.length === 0;
+    for (const b of books) {
+      const card = document.createElement('div');
+      card.className = 'shelf-item';
+      const title = document.createElement('div');
+      title.className = 'shelf-title';
+      title.textContent = b.title;
+      title.title = '点击继续阅读';
+      const meta = document.createElement('div');
+      meta.className = 'shelf-meta';
+      meta.textContent =
+        (b.size / 1048576).toFixed(1) + ' MB · ' + new Date(b.addedAt).toLocaleDateString();
+      const del = document.createElement('button');
+      del.className = 'shelf-del';
+      del.textContent = '✕';
+      del.title = '从书架删除';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shelfDel(b.id).then(renderShelf);
+      });
+      card.appendChild(title);
+      card.appendChild(meta);
+      card.appendChild(del);
+      card.addEventListener('click', () => openBuffer(b.buffer));
+      el.appendChild(card);
+    }
+  }
+
+  // ============================================================
   // 打开书籍 / UI 事件
   // ============================================================
-  async function openFile(file) {
+  async function openBuffer(buffer) {
     try {
       setStatus('解析中…');
-      const buffer = await file.arrayBuffer();
       const zip = await unzip(buffer);
       state.book = await parseEpub(zip, buffer);
       state.blobUrls.forEach((u) => URL.revokeObjectURL(u));
@@ -444,6 +522,30 @@
     }
   }
 
+  async function openFile(file) {
+    const buffer = await file.arrayBuffer();
+    // 先解析确认有效，再入库书架
+    await openBuffer(buffer);
+    if (state.book) {
+      shelfPut({
+        id: bookId(state.book.title, buffer.byteLength),
+        title: state.book.title,
+        addedAt: Date.now(),
+        size: buffer.byteLength,
+        buffer,
+      }).then(renderShelf);
+    }
+  }
+
+  function showShelf() {
+    stopLazy();
+    state.blobUrls.forEach((u) => URL.revokeObjectURL(u));
+    state.blobUrls = [];
+    $('reader').hidden = true;
+    $('drop').hidden = false;
+    renderShelf();
+  }
+
   // ---------- 事件 ----------
   $('btnOpen').addEventListener('click', () => $('fileInput').click());
   $('fileInput').addEventListener('change', (e) => {
@@ -476,6 +578,7 @@
     document.body.classList.toggle('only-tr', state.onlyTr);
     $('btnOnlyTr').textContent = state.onlyTr ? '双语' : '仅译文';
   });
+  $('btnShelf').addEventListener('click', showShelf);
   $('chapterSel').addEventListener('change', (e) => renderChapter(parseInt(e.target.value, 10)));
   const nav = (d) => {
     const n = state.index + d;
@@ -489,4 +592,5 @@
   $('btnNext2').addEventListener('click', () => nav(1));
 
   if (!sendTranslate) setStatus('预览模式：请在扩展中打开');
+  renderShelf();
 })();

@@ -245,6 +245,10 @@
           ],
         };
       }
+      if (payload.type === 'assist') {
+        await new Promise((r) => setTimeout(r, 400));
+        return { ok: true, text: payload.mode === 'summarize' ? '· 这是 AI 总结的第一条要点\n· 第二条要点\n· 总体：一篇关于渲染的测试文档' : '【解释】这段内容讲述了实时渲染的基本原理……' };
+      }
       return { ok: false, error: 'mock: unsupported type ' + payload.type };
     };
 

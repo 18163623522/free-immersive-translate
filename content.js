@@ -391,7 +391,7 @@
   // ---------- 增量翻译：翻译状态下页面新增内容自动补翻（无限滚动） ----------
   let contentObserver = null;
   let incTimer = null;
-  const SELF_ROOT_SEL = '.ift-tr,.ift-error,.ift-src,#ift-ball,#ift-menu,#ift-side,#ift-imgbtn,#ift-selbtn,#ift-selpop';
+  const SELF_ROOT_SEL = '.ift-tr,.ift-error,.ift-src,#ift-ball,#ift-menu,#ift-side,#ift-imgbtn,#ift-selbar,#ift-selpop';
 
   function startIncremental() {
     if (contentObserver || !document.body) return;
@@ -845,8 +845,8 @@
     );
   }
 
-  // ---------- 划词翻译 ----------
-  const SELBTN_ID = 'ift-selbtn';
+  // ---------- 划词翻译 / 解释 ----------
+  const SELBTN_ID = 'ift-selbar';
   const SELPOP_ID = 'ift-selpop';
 
   function hideSelUI() {
@@ -866,24 +866,27 @@
           const sel = window.getSelection();
           const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
           if (!text || text.length < 2 || text.length > 2000 || !sel.rangeCount) {
-            return; // 不隐藏：点击译文气泡时选择消失属正常
+            return;
           }
           const rect = sel.getRangeAt(0).getBoundingClientRect();
           if (!rect.width && !rect.height) return;
           hideSelUI();
-          const btn = document.createElement('div');
-          btn.id = SELBTN_ID;
-          btn.className = 'ift-root';
-          btn.textContent = '译';
-          btn.title = '翻译选中内容';
-          btn.addEventListener('mousedown', (ev) => ev.preventDefault()); // 保住选区
-          btn.addEventListener('click', (ev) => {
+          const bar = document.createElement('div');
+          bar.id = SELBTN_ID;
+          bar.className = 'ift-root';
+          bar.innerHTML =
+            '<button class="ift-sel-btn" data-mode="translate" title="翻译选中内容">译</button>' +
+            '<button class="ift-sel-btn" data-mode="explain" title="用中文解释这段内容">释</button>';
+          bar.addEventListener('mousedown', (ev) => ev.preventDefault()); // 保住选区
+          bar.addEventListener('click', (ev) => {
             ev.stopPropagation();
-            showSelectionPopup(text, rect);
+            const btn = ev.target.closest('.ift-sel-btn');
+            if (!btn) return;
+            showSelectionPopup(text, rect, btn.dataset.mode);
           });
-          document.documentElement.appendChild(btn);
-          btn.style.left = Math.min(window.innerWidth - 46, Math.max(6, rect.left)) + 'px';
-          btn.style.top = Math.max(6, rect.top - 44) + 'px';
+          document.documentElement.appendChild(bar);
+          bar.style.left = Math.min(window.innerWidth - 96, Math.max(6, rect.left)) + 'px';
+          bar.style.top = Math.max(6, rect.top - 46) + 'px';
         }, 10);
       },
       true
@@ -898,34 +901,45 @@
     );
   }
 
-  async function showSelectionPopup(text, rect) {
+  async function showSelectionPopup(text, rect, mode) {
     hideSelUI();
     const pop = document.createElement('div');
     pop.id = SELPOP_ID;
     pop.className = 'ift-root';
-    pop.textContent = '正在翻译…';
+    pop.textContent = mode === 'explain' ? '正在解释…' : mode === 'summarize' ? '正在总结…' : '正在翻译…';
     document.documentElement.appendChild(pop);
-    const pw = 300;
+    const pw = 320;
     pop.style.left = Math.min(window.innerWidth - pw - 10, Math.max(8, rect.left)) + 'px';
-    pop.style.top = Math.min(window.innerHeight - 90, rect.bottom + 10) + 'px';
+    pop.style.top = Math.min(window.innerHeight - 120, rect.bottom + 10) + 'px';
 
-    const cached = state.cache.get(text);
-    if (cached !== undefined) {
-      pop.textContent = cached;
-      return;
-    }
-    const res = await sendTranslate({
-      type: 'translate',
-      items: [{ id: 0, text }],
-      targetLang: state.targetLang,
-    });
-    if (res && res.ok && typeof res.map[0] === 'string' && res.map[0].trim()) {
-      state.cache.set(text, res.map[0]);
-      pop.textContent = res.map[0];
+    let res;
+    if (mode === 'translate') {
+      const cached = state.cache.get(text);
+      if (cached !== undefined) {
+        pop.textContent = cached;
+        return;
+      }
+      res = await sendTranslate({ type: 'translate', items: [{ id: 0, text }], targetLang: state.targetLang });
+      if (res && res.ok && typeof res.map[0] === 'string') {
+        state.cache.set(text, res.map[0]);
+        pop.textContent = res.map[0];
+        return;
+      }
     } else {
-      pop.textContent = '⚠ ' + ((res && res.error) || '翻译失败');
-      pop.classList.add('ift-selpop-err');
+      res = await sendTranslate({
+        type: 'assist',
+        mode: mode,
+        text,
+        title: document.title,
+      });
+      if (res && res.ok) {
+        pop.textContent = res.text;
+        pop.style.whiteSpace = 'pre-wrap';
+        return;
+      }
     }
+    pop.textContent = '⚠ ' + ((res && res.error) || '失败');
+    pop.classList.add('ift-selpop-err');
   }
 
   // ---------- 输入框翻译（Alt+I：翻译 / 再按还原） ----------
@@ -993,7 +1007,10 @@
       '<div class="ift-side-hd"><span>翻译面板</span><button class="ift-side-x" title="关闭">✕</button></div>' +
       '<div class="ift-side-body">' +
       '<textarea class="ift-side-input" placeholder="输入要翻译的文字，Ctrl+Enter 翻译"></textarea>' +
-      '<div class="ift-side-actions"><span class="ift-side-lang"></span><button class="ift-side-go">翻译</button></div>' +
+      '<div class="ift-side-actions"><span class="ift-side-lang"></span>' +
+      '<button class="ift-side-mini" data-m="explain" title="用中文解释输入的内容">解释</button>' +
+      '<button class="ift-side-mini" data-m="summarize" title="总结本页内容">总结本页</button>' +
+      '<button class="ift-side-go">翻译</button></div>' +
       '<div class="ift-side-result">在上方输入文字开始翻译。</div>' +
       '<div class="ift-side-tools"><button class="ift-side-tts" title="朗读译文">🔊 朗读</button></div>' +
       '<div class="ift-side-hist-hd">历史（本次浏览）</div>' +
@@ -1037,31 +1054,45 @@
       speechSynthesis.speak(u);
     });
 
-    const run = async () => {
-      const text = input.value.trim();
+    const run = async (mode) => {
+      let text = input.value.trim();
+      let label = '翻译';
+      if (mode === 'summarize') {
+        text = (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim().slice(0, 6000);
+        label = '总结';
+        if (text.length < 50) {
+          result.textContent = '页面内容太少，无法总结';
+          return;
+        }
+      } else if (mode === 'explain') {
+        label = '解释';
+      }
       if (!text) return;
       go.disabled = true;
-      go.textContent = '翻译中…';
-      result.textContent = '正在翻译…';
+      go.textContent = label + '中…';
+      result.textContent = '正在' + label + '…';
       result.classList.add('loading');
-      const res = await sendTranslate({
-        type: 'translate',
-        items: [{ id: 0, text }],
-        targetLang: state.targetLang,
-      });
+      const res =
+        mode
+          ? await sendTranslate({ type: 'assist', mode, text, title: document.title })
+          : await sendTranslate({ type: 'translate', items: [{ id: 0, text }], targetLang: state.targetLang });
       go.disabled = false;
       go.textContent = '翻译';
       result.classList.remove('loading');
-      if (res && res.ok && typeof res.map[0] === 'string') {
-        result.textContent = res.map[0];
-        sideHistory.unshift({ q: text, a: res.map[0] });
+      const okText = mode ? (res && res.ok ? res.text : null) : res && res.ok ? res.map[0] : null;
+      if (okText) {
+        result.textContent = okText;
+        sideHistory.unshift({ q: (label + '：' + text).slice(0, 60) + '…', a: okText });
         renderHist();
       } else {
-        result.textContent = '⚠ ' + ((res && res.error) || '翻译失败');
+        result.textContent = '⚠ ' + ((res && res.error) || '失败');
       }
     };
 
-    go.addEventListener('click', run);
+    go.addEventListener('click', () => run());
+    side.querySelectorAll('.ift-side-mini').forEach((b) =>
+      b.addEventListener('click', () => run(b.dataset.m))
+    );
     input.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') run();
     });
@@ -1346,6 +1377,7 @@
       '<div class="ift-menu-item' + (state.subtitle ? ' ift-menu-on' : '') + '" data-act="subtitle">视频字幕' +
       '<span class="ift-menu-state">' + (state.subtitle ? '开' : '关') + '</span></div>' +
       '<div class="ift-menu-item" data-act="sidepanel">翻译面板 (Alt+S)</div>' +
+      '<div class="ift-menu-item" data-act="summarize">总结本页 (AI)</div>' +
       '<div class="ift-menu-item ift-menu-dim" data-act="epub">打开双语电子书…</div>' +
       '<div class="ift-menu-item ift-menu-dim" data-act="export">导出双语 HTML</div>' +
       '<div class="ift-menu-sec">译文样式</div>' +
@@ -1382,6 +1414,14 @@
         showBallMenu();
       } else if (act === 'sidepanel') {
         toggleSidePanel();
+      } else if (act === 'summarize') {
+        const text = (document.body ? document.body.innerText : '').replace(/\s+/g, ' ').trim().slice(0, 6000);
+        if (text.length < 50) {
+          flashBall('页面内容太少，无法总结');
+        } else {
+          const center = { left: Math.max(8, window.innerWidth / 2 - 160), bottom: window.innerHeight / 2, width: 320 };
+          showSelectionPopup(text, center, 'summarize');
+        }
       } else if (act === 'epub') {
         if (hasChromeApi) chrome.runtime.sendMessage({ type: 'openEpub' });
         else flashBall('电子书阅读器需以扩展方式运行');

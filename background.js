@@ -508,6 +508,63 @@ async function translateBatch(items, targetLang, context) {
   }
 }
 
+// ---------- AI 阅读助手（解释/总结，普通回答不走 JSON 模式） ----------
+const ASSIST_PROMPTS = {
+  explain: (text) =>
+    '你是阅读助手。用简体中文解释下面这段内容的含义；若涉及专业概念，顺带简要说明背景。结合页面主题「{TITLE}」理解。回答精炼（200 字内），用自然段落，不要列表套娃。\n\n' + text,
+  summarize: (text) =>
+    '你是阅读助手。用简体中文总结下面内容的核心要点，输出 3-6 条要点，每条一行，以「· 」开头，最后空一行给一句总体评价。页面主题「{TITLE}」。\n\n' + text,
+};
+
+async function assist(mode, text, title) {
+  const settings = await getSettings();
+  const prompt = ASSIST_PROMPTS[mode](text).replace('{TITLE}', (title || '').slice(0, 60) || '网页');
+  const body = {
+    model: settings.model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: Math.max(2000, Math.min(4000, Math.ceil(text.length * 0.8))),
+  };
+  if (settings.provider === 'zhipu') {
+    body.do_sample = false;
+    if (/^glm-4\.[56]/.test(settings.model)) body.thinking = { type: 'disabled' };
+    else if (/^glm-4\.7/.test(settings.model)) body.max_tokens = Math.max(4096, body.max_tokens * 2);
+  }
+
+  const url = settings.provider === 'custom' ? settings.customBaseUrl : settings.preset.baseUrl;
+  await acquire();
+  try {
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt) await sleep(900);
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + settings.apiKey },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(/^glm-4\.7/.test(settings.model) ? 25000 : 45000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const msg = data.choices && data.choices[0] && data.choices[0].message;
+          const content = msg && typeof msg.content === 'string' ? msg.content : '';
+          if (content.trim()) return { ok: true, text: content.trim() };
+          lastErr = new Error('空内容');
+          continue;
+        }
+        let detail = '';
+        try { detail = (await res.text()).slice(0, 140); } catch (_) {}
+        lastErr = new Error('HTTP ' + res.status + ' ' + detail);
+        if (res.status !== 429 && res.status < 500) break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    return { ok: false, error: String(lastErr && lastErr.message ? lastErr.message : lastErr) };
+  } finally {
+    release();
+  }
+}
+
 // ---------- 图片/漫画翻译（视觉模型） ----------
 function buildVisionPrompt(targetLang) {
   return (
@@ -669,6 +726,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'translateImage') {
     translateImage(msg.src || '', msg.targetLang || '简体中文').then(sendResponse);
+    return true;
+  }
+
+  if (msg.type === 'assist') {
+    assist(msg.mode === 'summarize' ? 'summarize' : 'explain', String(msg.text || ''), msg.title).then(sendResponse);
     return true;
   }
 
