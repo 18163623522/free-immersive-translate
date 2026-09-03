@@ -94,6 +94,7 @@
     visionProvider: 'zhipu', visionModel: 'glm-4.6v-flash',
     visionApiKey: '', visionCustomUrl: '',
     autoTranslate: false, blacklist: '', customInstruction: '', enableSubtitle: true,
+    backupProvider: '', backupApiKey: '',
   };
 
   function setStatus(text, cls) {
@@ -225,6 +226,8 @@
     current.visionCustomUrl = els.visionCustomUrl.value.trim();
     current.blacklist = $('blacklist').value;
     current.customInstruction = $('customInstruction').value;
+    current.backupProvider = $('backupProvider').value;
+    current.backupApiKey = $('backupApiKey').value.trim();
     return current;
   }
 
@@ -289,6 +292,8 @@
       els.visionModel.value = s.visionModel;
       els.visionApiKey.value = s.visionApiKey;
       els.visionCustomUrl.value = s.visionCustomUrl;
+      $('backupProvider').value = s.backupProvider || '';
+      $('backupApiKey').value = s.backupApiKey || '';
       els.swEnableImage.classList.toggle('on', s.enableImage !== false);
       els.swEnableImage.setAttribute('aria-checked', String(s.enableImage !== false));
       $('blacklist').value = s.blacklist || '';

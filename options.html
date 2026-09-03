@@ -430,6 +430,29 @@
       </div>
 
       <div class="card">
+        <div class="card-title">故障转移</div>
+        <div class="stack">
+          <div class="field">
+            <label>备用服务商（主服务商限流/超时时自动切换，用其默认免费模型）</label>
+            <select id="backupProvider">
+              <option value="">不启用</option>
+              <option value="zhipu">智谱 BigModel</option>
+              <option value="bailian">阿里云百炼</option>
+              <option value="volc">火山方舟 · 豆包</option>
+              <option value="siliconflow">硅基流动</option>
+              <option value="gemini">Google Gemini（需代理）</option>
+              <option value="groq">Groq（需代理）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>备用服务商 API Key</label>
+            <input type="password" id="backupApiKey" placeholder="另一家的免费 Key" autocomplete="off" />
+            <div class="hint">推荐组合：主智谱 + 备豆包（每日 200 万）——高峰限流时无缝切换，切换后翻译照常返回</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">账号与语言</div>
         <div class="stack">
           <div class="field">

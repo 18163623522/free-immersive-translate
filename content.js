@@ -49,6 +49,7 @@
     translating: false,
     translated: false,
     batchSeq: 0,        // 批次自增 id，用于防止过期响应回填
+    progress: null,     // { done, total } 视口优先模式的累计进度
     targetLang: '简体中文',
     trStyle: 'color',   // 译文样式主题（ift-s-*）
       enableHover: true,
@@ -274,16 +275,83 @@
     setBallText('翻译中…');
     setBallLoading(true);
 
-    await translateParagraphs(paras, (done, total) => {
-      setBallProgress('翻译中 ' + done + '/' + total);
-    });
+    // 视口优先：立即翻视口及下方一屏半，其余滚动到附近再翻（省额度 + 秒出首屏）
+    await translateViewportFirst(paras);
 
     state.translating = false;
     setBallLoading(false);
-    hideBallTip();
+    if (state.progress && state.progress.done >= state.progress.total) hideBallTip();
     setBallText('还原译文');
     startIncremental(); // 无限滚动页面：新内容自动增量翻译
     return true;
+  }
+
+  // ---------- 视口优先调度 ----------
+  let lazyIO = null; // 滚动懒翻译观察器
+
+  function stopLazyTranslate() {
+    if (lazyIO) {
+      lazyIO.disconnect();
+      lazyIO = null;
+    }
+  }
+
+  function bumpProgress(n) {
+    if (!state.progress) return;
+    state.progress.done = Math.min(state.progress.total, state.progress.done + n);
+    if (state.progress.done >= state.progress.total) {
+      setBallProgress('已翻译 ' + state.progress.total + ' 段');
+      setTimeout(() => {
+        if (state.progress && state.progress.done >= state.progress.total) hideBallTip();
+      }, 1200);
+    } else {
+      setBallProgress('翻译中 ' + state.progress.done + '/' + state.progress.total);
+    }
+  }
+
+  async function translateViewportFirst(paras) {
+    const ahead = window.innerHeight * 1.5; // 视口上方半屏 + 下方一屏半内立即翻
+    const immediate = [];
+    const lazy = [];
+    for (const p of paras) {
+      const rect = p.el.getBoundingClientRect();
+      if (rect.top < ahead && rect.bottom > -window.innerHeight * 0.5) immediate.push(p);
+      else lazy.push(p);
+    }
+    state.progress = { done: 0, total: paras.length };
+
+    if (immediate.length) {
+      await translateParagraphs(immediate, null);
+      bumpProgress(immediate.length);
+    }
+    if (!lazy.length) return;
+
+    // 滚动到附近（提前 1.5 屏）自动补翻
+    stopLazyTranslate();
+    lazyIO = new IntersectionObserver(
+      (entries) => {
+        const due = [];
+        for (const en of entries) {
+          if (!en.isIntersecting) continue;
+          lazyIO.unobserve(en.target);
+          if (en.target.__iftPara) due.push(en.target.__iftPara);
+          en.target.__iftPara = null;
+        }
+        if (due.length && state.translated && !state.translating) {
+          translateParagraphs(due, null).then(() => bumpProgress(due.length));
+        } else if (due.length && state.translating) {
+          // 首屏仍在翻译中：稍后合并处理
+          setTimeout(() => {
+            if (state.translated) translateParagraphs(due, null).then(() => bumpProgress(due.length));
+          }, 600);
+        }
+      },
+      { rootMargin: '150% 0px 150% 0px' }
+    );
+    for (const p of lazy) {
+      p.el.__iftPara = p;
+      lazyIO.observe(p.el);
+    }
   }
 
   // 翻译一组已收集的段落（整页与增量共用），可选进度回调
@@ -310,7 +378,9 @@
     state.batchSeq++; // 使在途响应失效
     state.translating = false;
     state.translated = false;
+    state.progress = null;
     stopIncremental();
+    stopLazyTranslate();
     document.querySelectorAll('.' + TR_CLS + ',.' + ERR_CLS).forEach((n) => n.remove());
     document.querySelectorAll('[' + MARK_ATTR + ']').forEach((n) => n.removeAttribute(MARK_ATTR));
     document.querySelectorAll('.' + SRC_CLS).forEach((w) => w.replaceWith(...w.childNodes)); // 释放被包裹的原文

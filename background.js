@@ -77,6 +77,9 @@ const DEFAULT_SETTINGS = {
   blacklist: '',
   customInstruction: '',
   enableSubtitle: true,
+  // 跨服务商故障转移（主服务商限流/超时自动切备用）
+  backupProvider: '',
+  backupApiKey: '',
 };
 
 async function getVisionSettings() {
@@ -88,6 +91,22 @@ async function getVisionSettings() {
     apiKey: s.visionApiKey || s.apiKey,
     customBaseUrl: s.visionCustomUrl,
     preset: PROVIDERS[s.visionProvider] || PROVIDERS.zhipu,
+  };
+}
+
+// 备用服务商设置（跨家故障转移）：未配置或与主家相同则返回 null
+async function getBackupSettings(mainProvider) {
+  const s = await chrome.storage.sync.get({ backupProvider: '', backupApiKey: '' });
+  if (!s.backupProvider || !s.backupApiKey) return null;
+  if (s.backupProvider === mainProvider) return null;
+  const preset = PROVIDERS[s.backupProvider];
+  if (!preset || s.backupProvider === 'custom') return null; // 备用不支持自定义（需额外 URL）
+  return {
+    provider: s.backupProvider,
+    apiKey: s.backupApiKey,
+    model: preset.defaultModel,
+    customBaseUrl: '',
+    preset,
   };
 }
 
@@ -452,9 +471,19 @@ async function translateBatch(items, targetLang, context) {
     try {
       raw = await callLLM(settings, system, user, maxTokens);
     } catch (e) {
-      // 失败重试一次（免费档偶发 429/502）
-      await new Promise((r) => setTimeout(r, 800));
-      raw = await callLLM(settings, system, user, maxTokens);
+      try {
+        // 主服务商重试一次（免费档偶发 429/502）
+        await new Promise((r) => setTimeout(r, 800));
+        raw = await callLLM(settings, system, user, maxTokens);
+      } catch (e2) {
+        // 主服务商彻底失败 → 备用服务商兜底（跨家故障转移）
+        const backup = await getBackupSettings(settings.provider);
+        if (backup) {
+          raw = await callLLM(backup, system, user, maxTokens);
+        } else {
+          throw e2;
+        }
+      }
     }
     const fresh = parseTranslations(raw, pending.map((p) => p.it.id));
     // 3. 合并 + 写入持久缓存 + 统计
