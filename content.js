@@ -1152,6 +1152,8 @@
   function onBallPointerDown(e) {
     if (e.button !== 0) return;
     drag = { startX: e.clientX, startY: e.clientY, moved: false, pointerId: e.pointerId };
+    // 指针捕获：拖出球体/被站点全局监听器拦截时仍能持续收到事件
+    try { ballEl.setPointerCapture(e.pointerId); } catch (_) {}
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
       if (drag && !drag.moved) {
@@ -1345,9 +1347,10 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') hideBallMenu();
   });
-  window.addEventListener('pointermove', onBallPointerMove);
-  window.addEventListener('pointerup', onBallPointerUp);
-  window.addEventListener('pointercancel', onBallPointerUp);
+  // capture 阶段监听：绕过站点脚本对 pointer 事件的 stopPropagation 拦截
+  window.addEventListener('pointermove', onBallPointerMove, true);
+  window.addEventListener('pointerup', onBallPointerUp, true);
+  window.addEventListener('pointercancel', onBallPointerUp, true);
 
   function setBallLoading(on) {
     if (!ballEl) return;

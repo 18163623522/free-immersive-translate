@@ -157,6 +157,7 @@
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none; /* 触摸/触摸板拖动不被浏览器接管为页面滚动 */
   font-family: "MiSans", "Microsoft YaHei", system-ui, sans-serif;
   overflow: hidden;
   transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
