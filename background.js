@@ -110,9 +110,24 @@ function release() {
 // ---------- LLM 调用 ----------
 // 429（免费档过载，智谱 code 1305）应对：指数退避 + 全局冷却排队 + 智谱体系内自动降级轻量模型
 let providerCooldownUntil = 0; // 429 后所有请求排队等待，避免雪上加霜
-let zhipuFallbackModel = '';   // 主模型持续 429 时本会话自动降级（同 Key 可用的免费轻量款）
 const ZHIPU_FALLBACK = 'glm-4-flash-250414';
+const FALLBACK_TTL = 30 * 60 * 1000; // 降级决定保留 30 分钟，之后自动重试主力模型
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 降级状态存 session storage：SW 重启后仍生效，避免每个会话都重新挨一次超时
+async function getZhipuFallback() {
+  try {
+    const s = await chrome.storage.session.get({ zhipuFallback: null });
+    if (s.zhipuFallback && s.zhipuFallback.until > Date.now()) return s.zhipuFallback.model;
+  } catch (_) {}
+  return '';
+}
+
+async function setZhipuFallback(model) {
+  try {
+    await chrome.storage.session.set({ zhipuFallback: { model, until: Date.now() + FALLBACK_TTL } });
+  } catch (_) {}
+}
 
 async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   const url =
@@ -123,20 +138,21 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   if (!settings.apiKey) throw new Error('未配置 API Key，请到设置页填写');
 
   let model = settings.model;
-  if (settings.provider === 'zhipu' && zhipuFallbackModel && model !== zhipuFallbackModel) {
-    model = zhipuFallbackModel; // 本会话已确认主模型过载，直接走降级
+  if (settings.provider === 'zhipu') {
+    const fb = await getZhipuFallback();
+    if (fb && model !== fb) model = fb; // 会话内已确认主模型过载，直接走降级
   }
 
   const result = await callModelWithRetry(settings, url, model, systemPrompt, userPrompt, maxTokens);
   if (result.ok) return result.content;
 
-  // 智谱主模型持续 429：同 Key 自动降级到免费轻量款再试
+  // 智谱主模型持续 429/超时：同 Key 自动降级到免费轻量款再试
   if (
     settings.provider === 'zhipu' &&
     result.rateLimited &&
     model !== ZHIPU_FALLBACK
   ) {
-    zhipuFallbackModel = ZHIPU_FALLBACK;
+    await setZhipuFallback(ZHIPU_FALLBACK);
     const fb = await callModelWithRetry(settings, url, ZHIPU_FALLBACK, systemPrompt, userPrompt, maxTokens);
     if (fb.ok) return fb.content;
     throw fb.error;
@@ -144,24 +160,42 @@ async function callLLM(settings, systemPrompt, userPrompt, maxTokens) {
   throw result.error;
 }
 
-async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt, maxTokens) {
-  const base = {
+// ---------- 按官方 API 规范构建请求体 ----------
+// 智谱对话补全规范（docs.bigmodel.cn 对话补全 API）：
+// - do_sample:false 时忽略 temperature/top_p，官方推荐用于翻译等一致性任务
+// - response_format:{type:'json_object'} 保证输出合法 JSON（文本模型支持）
+// - thinking 仅 GLM-4.5+ 支持；GLM-4.7 系列强制思考关不掉；4.5/4.6 可 disabled 提速
+function buildRequestBody(settings, model, systemPrompt, userPrompt, maxTokens) {
+  const body = {
     model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    // 智谱 GLM-4.5+ 系列官方推荐 temperature 0.6~1.2，过低的值部分模型会拒绝
     temperature: 0.6,
     max_tokens: Math.max(2000, maxTokens),
   };
-  // 关闭思考模式提速；硅基流动 Qwen3 系列 hybrid 用 enable_thinking:false
-  if (settings.provider === 'zhipu') base.thinking = { type: 'disabled' };
-  if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(model)) {
-    base.enable_thinking = false;
-  }
 
-  // 参数自适应降级：4xx 时依次去掉可选参数重试
+  if (settings.provider === 'zhipu') {
+    body.do_sample = false; // 翻译一致性；同时绕开 temperature 约束差异
+    body.response_format = { type: 'json_object' };
+    if (/^glm-4\.7/.test(model)) {
+      // 4.7 系列强制思考：不传 thinking，输出预算放大容纳 reasoning
+      body.max_tokens = Math.max(4096, maxTokens * 2);
+    } else if (/^glm-4\.[56]/.test(model)) {
+      body.thinking = { type: 'disabled' }; // 4.5/4.6 可关思考提速
+    }
+    // glm-4 老款（4-flash-250414 等）不支持 thinking 字段，不传
+  } else if (settings.provider === 'siliconflow' && /^Qwen\/Qwen3/i.test(model)) {
+    body.enable_thinking = false; // Qwen3 hybrid 关思考
+  }
+  return body;
+}
+
+async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt, maxTokens) {
+  const base = buildRequestBody(settings, model, systemPrompt, userPrompt, maxTokens);
+
+  // 参数自适应降级：4xx 时逐步去掉可选参数重试（兼容各代模型校验差异）
   const variants = [
     (b) => b,
     (b) => {
@@ -174,6 +208,8 @@ async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt
       const c = { ...b };
       delete c.thinking;
       delete c.enable_thinking;
+      delete c.response_format;
+      delete c.do_sample;
       delete c.temperature;
       return c;
     },
@@ -192,8 +228,9 @@ async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt
 
     for (const build of variants) {
       let res;
+      // 超时保护：4.7 系列强制思考且免费档排队慢，20s 没回直接降级；其他模型 45s
+      const timeoutMs = /^glm-4\.7/.test(model) ? 20000 : 45000;
       try {
-        // 45s 超时保护：退役/异常模型会挂起不响应，不能让"正在翻译…"永远悬着
         res = await fetch(url, {
           method: 'POST',
           headers: {
@@ -201,12 +238,12 @@ async function callModelWithRetry(settings, url, model, systemPrompt, userPrompt
             Authorization: 'Bearer ' + settings.apiKey,
           },
           body: JSON.stringify(build(base)),
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (e) {
         const msg = e && e.message ? e.message : String(e);
         const timedOut = /abort|timeout|超时/i.test(msg);
-        lastErr = new Error((timedOut ? '模型响应超时（45s）' : '网络错误：') + (timedOut ? '' : msg));
+        lastErr = new Error((timedOut ? '模型响应超时（' + Math.round(timeoutMs / 1000) + 's，服务器繁忙）' : '网络错误：') + (timedOut ? '' : msg));
         if (timedOut) return { ok: false, rateLimited: true, error: lastErr }; // 触发智谱自动降级换模型
         return { ok: false, error: lastErr };
       }
@@ -464,10 +501,14 @@ async function translateImage(src, targetLang) {
         ],
       },
     ],
-    temperature: 0.1,
     max_tokens: 3000,
   };
-  if (vs.provider === 'zhipu') body.thinking = { type: 'disabled' };
+  // 按官方规范：视觉模型用 do_sample:false（一致性，忽略温度）；
+  // 4.6V 思考可关提速；4.5V 同理；不支持 thinking 的老款走参数降级变体兜底
+  if (vs.provider === 'zhipu') {
+    body.do_sample = false;
+    if (/^glm-4\.[56]/.test(model)) body.thinking = { type: 'disabled' };
+  }
 
   await acquire();
   try {

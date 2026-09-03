@@ -57,7 +57,7 @@
 
 | 服务商 | 免费模型 | Key 获取 | 备注 |
 |---|---|---|---|
-| **智谱 BigModel**（默认） | `glm-4.7-flash` | [open.bigmodel.cn](https://open.bigmodel.cn/userinfo/apikey) 注册即得 | 完全免费、国内直连（`glm-4.5-flash` 已临近下线，勿再用） |
+| **智谱 BigModel**（默认） | `glm-4.7-flash` | [open.bigmodel.cn](https://open.bigmodel.cn/userinfo/apikey) 注册即得 | 按官方[对话补全 API](https://docs.bigmodel.cn/api-reference/模型-api/对话补全) 规范配置：`do_sample:false`（翻译一致性）+ `response_format:json_object`（稳定 JSON 输出）；4.7 系列强制思考无法关闭，繁忙时限流——插件自动降级 `glm-4-flash-250414`（同 Key 免费，实测秒回） |
 | 硅基流动 | `Qwen/Qwen3-8B` 等带「免费」标签款 | [cloud.siliconflow.cn](https://cloud.siliconflow.cn/account/ak) | 0 元小模型，有 RPM 限速 |
 | Groq | `llama-3.3-70b-versatile` | [console.groq.com](https://console.groq.com/keys) | 免费档，国内需代理 |
 
