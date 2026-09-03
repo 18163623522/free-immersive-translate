@@ -26,9 +26,9 @@
     }
     * { box-sizing: border-box; }
     body {
-      width: 272px;
+      width: 276px;
       margin: 0;
-      padding: 16px 16px 14px;
+      padding: 16px 14px 14px;
       background: var(--bg);
       color: var(--tx);
       font-family: "MiSans", "HarmonyOS Sans SC", "Segoe UI Variable Text",
@@ -36,7 +36,7 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
-    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .logo {
       width: 34px; height: 34px;
       border-radius: 11px;
@@ -51,31 +51,68 @@
     .meta { font-size: 11px; color: var(--tx-hint); line-height: 1.5; margin-top: 1px; }
     .meta b { color: var(--on-acc-weak); font-weight: 600; }
 
+    /* 快捷语言切换 */
+    .langrow {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px; font-size: 12px; color: var(--tx2);
+    }
+    .langrow select {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12.5px;
+      font-family: inherit;
+      border: 1.5px solid transparent;
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--tx);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+    }
+    .langrow select:focus { border-color: var(--acc); box-shadow: var(--ring); }
+    .langrow select option { color: #17181c; background: #fff; }
+
+    /* 页面状态条 */
+    .status {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 11px;
+      margin-bottom: 10px;
+      font-size: 11.5px;
+      color: var(--tx2);
+      background: var(--panel);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      min-height: 34px;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--line2);
+      flex: none;
+    }
+    .dot.on { background: #34c77b; }
+    .dot.busy { background: #f5a623; animation: blink 0.9s ease infinite; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+
     button {
       width: 100%;
       padding: 11px 0;
+      margin-bottom: 8px;
       font-size: 13.5px;
       font-weight: 500;
       font-family: inherit;
-      border-radius: 12px;
+      border-radius: 14px;
       border: none;
       background: var(--panel);
       color: var(--tx);
       cursor: pointer;
       box-shadow: var(--shadow);
-      transition: transform 0.12s var(--ease), background 0.16s var(--ease),
-        box-shadow 0.16s var(--ease);
+      transition: transform 0.12s var(--ease), background 0.16s var(--ease);
     }
     button:hover { background: var(--acc-weak); color: var(--on-acc-weak); }
     button:active { transform: scale(0.96); }
     button:focus-visible { outline: none; box-shadow: var(--ring); }
-    button.primary {
-      background: var(--acc);
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(52, 130, 255, 0.24);
-    }
+    button.primary { background: var(--acc); color: #fff; }
     button.primary:hover { background: var(--acc-deep); color: #fff; }
-    .primary { margin-bottom: 8px; }
     .duo { display: flex; gap: 8px; margin-bottom: 10px; }
     .duo button { flex: 1; }
 
@@ -89,40 +126,19 @@
       border-radius: 10px;
       line-height: 1.5;
     }
+    .stats {
+      font-size: 10.5px;
+      color: var(--tx-hint);
+      text-align: center;
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
     .kbd {
       font-size: 10.5px;
       color: var(--tx-hint);
       text-align: center;
       letter-spacing: 0.01em;
-    }
-
-    /* ---------- 入场：短生命周期界面，快速错落浮现 ---------- */
-    .brand,
-    .warn,
-    .primary,
-    .duo,
-    .kbd {
-      animation: popup-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-    .primary { animation-delay: 55ms; }
-    .duo { animation-delay: 105ms; }
-    .kbd { animation-delay: 145ms; }
-
-    @keyframes popup-in {
-      from {
-        opacity: 0;
-        transform: translateY(6px);
-      }
-      to {
-        opacity: 1;
-        transform: none;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .brand, .warn, .primary, .duo, .kbd {
-        animation: none !important;
-      }
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -135,13 +151,24 @@
     </div>
   </div>
 
+  <div class="langrow">
+    <span>译成</span>
+    <select id="langQuick" title="切换目标语言（立即生效）">
+      <option>简体中文</option><option>繁體中文</option><option>English</option>
+      <option>日本語</option><option>한국어</option><option>Français</option>
+      <option>Deutsch</option><option>Español</option><option>Русский</option>
+    </select>
+  </div>
+
   <div class="warn" id="warn"></div>
+  <div class="status" id="pageStatus"><span class="dot"></span><span id="statusText">读取页面状态…</span></div>
   <button class="primary" id="btnToggle">翻译此页</button>
   <div class="duo">
     <button id="btnImages">翻译图片</button>
     <button id="btnOptions">设置</button>
   </div>
-  <div class="kbd">Alt+A 翻译网页 · 悬停图片单图翻译 · PDF 点悬浮球</div>
+  <div class="stats" id="stats"></div>
+  <div class="kbd">Alt+A 网页 · Alt+S 面板 · Alt+I 输入框 · 悬停图片单图翻译</div>
 
   <script src="popup.js"></script>
 </body>

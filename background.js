@@ -361,10 +361,21 @@ async function cachePut(entries) {
 }
 
 // ---------- 批量翻译 ----------
-function buildPrompts(items, targetLang, customInstruction) {
-  const system =
+// context: { title, samples:[[src,tr],...] } —— 同页已译对照样本，保证术语与风格一致
+function buildPrompts(items, targetLang, customInstruction, context) {
+  let system =
     '你是网页翻译引擎。用户给出一个 JSON 数组，每项形如 {"id":数字,"text":"原文"}。' +
-    `把每项 text 翻译成${targetLang}。要求：忠实原意、书面通顺；代码、命令、URL、邮箱、专有名词保留原文；不要扩写。` +
+    `把每项 text 翻译成${targetLang}。要求：忠实原意、书面通顺；代码、命令、URL、邮箱、专有名词保留原文；不要扩写。`;
+  if (context && context.title) {
+    system += '\n当前页面标题：' + context.title.slice(0, 80) + '（据其判断领域与语气）。';
+  }
+  if (context && Array.isArray(context.samples) && context.samples.length) {
+    system += '\n以下是同一页面前面段落的原译对照，请保持专有名词译法与整体风格严格一致：';
+    for (const [s, t] of context.samples.slice(-6)) {
+      system += '\n- ' + String(s).slice(0, 60) + ' => ' + String(t).slice(0, 60);
+    }
+  }
+  system +=
     (customInstruction && customInstruction.trim()
       ? '\n补充要求（优先级高于以上默认风格）：' + customInstruction.trim()
       : '') +
@@ -398,7 +409,18 @@ function parseTranslations(raw, ids) {
   return map;
 }
 
-async function translateBatch(items, targetLang) {
+// ---------- 翻译统计（session 级，弹窗展示） ----------
+async function bumpStats(fields) {
+  try {
+    const s = await chrome.storage.session.get({ iftStats: { chars: 0, reqs: 0, hits: 0 } });
+    s.iftStats.chars += fields.chars || 0;
+    s.iftStats.reqs += fields.reqs || 0;
+    s.iftStats.hits += fields.hits || 0;
+    await chrome.storage.session.set({ iftStats: s.iftStats });
+  } catch (_) {}
+}
+
+async function translateBatch(items, targetLang, context) {
   const settings = await getSettings();
   const keys = items.map((it) =>
     textCacheKey(it.text, targetLang, settings.model, settings.customInstruction)
@@ -411,13 +433,17 @@ async function translateBatch(items, targetLang) {
     if (cached[keys[i]] !== undefined) map[it.id] = cached[keys[i]];
     else pending.push({ it, key: keys[i] });
   });
+  if (pending.length !== items.length) {
+    bumpStats({ chars: items.reduce((n, it) => n + it.text.length, 0), hits: items.length - pending.length });
+  }
   if (!pending.length) return { ok: true, map };
 
-  // 2. 未命中的走 LLM
+  // 2. 未命中的走 LLM（附同页上下文：标题 + 前文原译对照，保证术语一致）
   const [system, user] = buildPrompts(
     pending.map((p) => p.it),
     targetLang,
-    settings.customInstruction
+    settings.customInstruction,
+    context
   );
   const maxTokens = Math.min(8000, 600 + Math.ceil(user.length * 1.5));
   await acquire();
@@ -431,7 +457,7 @@ async function translateBatch(items, targetLang) {
       raw = await callLLM(settings, system, user, maxTokens);
     }
     const fresh = parseTranslations(raw, pending.map((p) => p.it.id));
-    // 3. 合并 + 写入持久缓存
+    // 3. 合并 + 写入持久缓存 + 统计
     const puts = [];
     pending.forEach((p) => {
       const t = fresh[p.it.id];
@@ -441,6 +467,10 @@ async function translateBatch(items, targetLang) {
       }
     });
     if (puts.length) cachePut(puts);
+    bumpStats({
+      chars: pending.reduce((n, p) => n + p.it.text.length, 0),
+      reqs: 1,
+    });
     return { ok: true, map };
   } catch (e) {
     return { ok: false, error: String(e && e.message ? e.message : e) };
@@ -585,8 +615,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'translate') {
     const items = Array.isArray(msg.items) ? msg.items : [];
     const target = msg.targetLang || '简体中文';
-    translateBatch(items, target).then(sendResponse);
+    translateBatch(items, target, msg.context).then(sendResponse);
     return true; // 异步响应
+  }
+
+  if (msg.type === 'getStats') {
+    chrome.storage.session
+      .get({ iftStats: { chars: 0, reqs: 0, hits: 0 } })
+      .then((s) => sendResponse({ ok: true, stats: s.iftStats }));
+    return true;
   }
 
   if (msg.type === 'test') {

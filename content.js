@@ -228,12 +228,15 @@
 
     for (const p of pending) fillTranslation(p.el, '正在翻译…');
     const items = pending.map((p, i) => ({ id: i, text: p.text }));
+    // 同页上下文：标题 + 已译对照样本（尾部 6 条），保证术语与风格前后一致
+    const samples = [...state.cache.entries()].slice(-6);
     let res;
     try {
       res = await sendTranslate({
         type: 'translate',
         items,
         targetLang: state.targetLang,
+        context: { title: document.title, samples },
       });
     } catch (e) {
       res = { ok: false, error: String(e) };
@@ -271,19 +274,23 @@
     setBallText('翻译中…');
     setBallLoading(true);
 
-    await translateParagraphs(paras);
+    await translateParagraphs(paras, (done, total) => {
+      setBallProgress('翻译中 ' + done + '/' + total);
+    });
 
     state.translating = false;
     setBallLoading(false);
+    hideBallTip();
     setBallText('还原译文');
     startIncremental(); // 无限滚动页面：新内容自动增量翻译
     return true;
   }
 
-  // 翻译一组已收集的段落（整页与增量共用）
-  async function translateParagraphs(paras) {
+  // 翻译一组已收集的段落（整页与增量共用），可选进度回调
+  async function translateParagraphs(paras, onProgress) {
     const token = state.batchSeq;
     const batches = makeBatches(paras);
+    let done = 0;
     let cursor = 0;
     const workers = Array.from(
       { length: Math.min(PAGE_CONCURRENCY, batches.length) },
@@ -291,6 +298,8 @@
         while (cursor < batches.length) {
           const b = batches[cursor++];
           await runBatch(b, token);
+          done += b.length;
+          if (onProgress) onProgress(done, paras.length);
         }
       }
     );
@@ -1365,6 +1374,25 @@
     flashTimer = setTimeout(() => tip.classList.remove('show'), 2200);
   }
 
+  // 持续进度提示（翻译期间常驻，结束由 hideBallTip 收起）
+  function setBallProgress(text) {
+    if (!ballEl) return;
+    let tip = ballEl.querySelector('.ift-ball-tip');
+    if (!tip) {
+      tip = document.createElement('span');
+      tip.className = 'ift-ball-tip';
+      ballEl.appendChild(tip);
+    }
+    tip.textContent = text;
+    tip.classList.add('show');
+    clearTimeout(flashTimer);
+  }
+
+  function hideBallTip() {
+    const tip = ballEl && ballEl.querySelector('.ift-ball-tip');
+    if (tip) tip.classList.remove('show');
+  }
+
   // ---------- 初始化 ----------
   // 每次翻译前都会重新同步：设置页改动后无需刷新页面
   async function syncSettings() {
@@ -1393,10 +1421,19 @@
   async function init() {
     await syncSettings();
     if (hasChromeApi) {
-      chrome.runtime.onMessage.addListener((msg) => {
+      chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (msg && msg.type === 'toggle') toggle();
         if (msg && msg.type === 'translateImages') translateAllImages();
         if (msg && msg.type === 'sidepanel') toggleSidePanel();
+        // 弹窗查询当前页面翻译状态
+        if (msg && msg.type === 'getStatus') {
+          sendResponse({
+            translated: state.translated,
+            translating: state.translating,
+            paragraphs: document.querySelectorAll('.' + TR_CLS).length,
+          });
+          return;
+        }
         // 右键菜单
         if (msg && msg.type === 'ctxPage') toggle();
         if (msg && msg.type === 'ctxSelection') {
